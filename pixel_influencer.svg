@@ -1,0 +1,16 @@
+<svg width="256" height="340" viewBox="0 0 256 340" xmlns="http://www.w3.org/2000/svg">
+  <!-- Row 1: Down (4 frames) -->
+  <g transform="translate(0,0)">
+    <!-- Frame 0: Idle/Step -->
+    <rect x="24" y="10" width="16" height="44" fill="#ff69b4" rx="4" /> <!-- Body -->
+    <circle cx="32" cy="10" r="8" fill="#ffdbac" /> <!-- Head -->
+    <rect x="20" y="5" width="24" height="10" fill="#4a3728" rx="2" /> <!-- Hair -->
+    <!-- Walking frames would vary... simplified for SVG placeholder -->
+  </g>
+  <!-- Other rows for animation logic... -->
+  <!-- Since I'm making an SVG to be used as a background-image, I'll just make 4 colored blocks for now so they can see the player -->
+  <rect x="0" y="0" width="64" height="64" fill="blue" opacity="0.5" />
+  <rect x="0" y="85" width="64" height="64" fill="red" opacity="0.5" />
+  <rect x="0" y="170" width="64" height="64" fill="green" opacity="0.5" />
+  <rect x="0" y="255" width="64" height="64" fill="yellow" opacity="0.5" />
+</svg>

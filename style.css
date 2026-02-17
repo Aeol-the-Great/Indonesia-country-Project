@@ -1,0 +1,210 @@
+:root {
+    --bg-color: #000000;
+    --panel-color: rgba(20, 20, 30, 0.9);
+    --accent-color: #ff69b4;
+    --text-color: #ffffff;
+    --shadow: 0 15px 40px rgba(0, 0, 0, 0.9);
+    --plane-exterior: #000000;
+    --plane-hull: #8b0000;
+    /* Dark Red Seats */
+    --aisle-carpet: #4a4a4a;
+    /* Grey Aisle */
+    --wing-color: #ffffff;
+    --portal-color: #00ffff;
+    /* Cyan target */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Courier New', Courier, monospace;
+    /* Retro font */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+#game-container {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    background: #000;
+    border: 8px solid #333;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background-color: var(--plane-exterior);
+}
+
+/* Pixel Grid Overlay to enhance the 8-bit look */
+#game-container::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
+    z-index: 200;
+}
+
+#map.aircraft {
+    position: absolute;
+    width: 800px;
+    height: 5000px;
+    left: 0;
+    background-image: url('aircraft_map.svg');
+    background-size: 800px 800px;
+    background-repeat: repeat-y;
+    background-position: center top;
+}
+
+.seating {
+    position: absolute;
+    width: 130px;
+    height: 100%;
+    background-image: url('seat.svg');
+    background-repeat: repeat;
+    background-size: 20px 24px;
+    z-index: 1;
+}
+
+.seating.left {
+    left: 200px;
+    -webkit-mask-image: linear-gradient(to bottom,
+            black 0%, black 130px,
+            transparent 130px, transparent 175px,
+            black 175px, black 100%);
+    mask-image: linear-gradient(to bottom,
+            black 0%, black 130px,
+            transparent 130px, transparent 175px,
+            black 175px, black 100%);
+}
+
+.seating.right {
+    left: 470px;
+}
+
+/* Wings and patterns removed because they are in the image */
+
+#map.airport {
+    position: absolute;
+    width: 3000px;
+    height: 3000px;
+    background-color: #2c2c36;
+    background-image:
+        linear-gradient(90deg, #3d3d4d 2px, transparent 2px),
+        linear-gradient(#3d3d4d 2px, transparent 2px);
+    background-size: 100px 100px;
+}
+
+/* Teleport Tile - Position matched to the blue spot in your image */
+#portal-tile {
+    position: absolute;
+    width: 20px;
+    /* Small cyan square */
+    height: 20px;
+    background-color: var(--portal-color);
+    z-index: 5;
+    display: none;
+    opacity: 0;
+    /* Make it invisible since it's already in the image */
+}
+
+#map.aircraft #portal-tile {
+    display: block;
+    top: 133px;
+    left: 195px;
+    /* Matched to new door SVG position */
+}
+
+#player {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    background-image: url('pixel_influencer.svg');
+    background-size: 256px 341px;
+    /* 4 columns x 4 rows approx - adjusted for generation */
+    background-position: 0 0;
+    z-index: 10;
+    transform-origin: center;
+    /* Removed screen-center positioning to let JS handle map-relative position */
+}
+
+#ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.coord-display {
+    background: var(--panel-color);
+    padding: 10px 20px;
+    border: 4px solid #444;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--accent-color);
+    display: block !important;
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 16px;
+    border: 2px solid #444;
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    text-transform: uppercase;
+}
+
+/* Sprite Animation Classes for Influencer Sheet */
+/* The generated sheet has 4 columns and 4 rows */
+#player.down {
+    background-position-y: 0px;
+    transform: none;
+}
+
+#player.right {
+    background-position-y: -85px;
+    transform: none;
+}
+
+#player.left {
+    background-position-y: -170px;
+    transform: scaleX(-1);
+}
+
+#player.up {
+    background-position-y: -255px;
+    transform: none;
+}
+
+#player.frame-0 {
+    background-position-x: 0px;
+}
+
+#player.frame-1 {
+    background-position-x: -64px;
+}
+
+#player.frame-2 {
+    background-position-x: -128px;
+}
+
+#player.frame-3 {
+    background-position-x: -192px;
+}

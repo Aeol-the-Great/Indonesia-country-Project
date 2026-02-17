@@ -1,0 +1,33 @@
+<svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background (Sky/Space) -->
+  <rect width="800" height="800" fill="#000000" />
+  
+  <!-- Wings with Detail (moved outward to accommodate wider fuselage) -->
+  <!-- Left Wing -->
+  <path d="M200 300 L20 350 L20 450 L200 500 Z" fill="#ffffff" stroke="#cccccc" stroke-width="2" />
+  <rect x="80" y="440" width="60" height="30" rx="5" fill="#333333" /> <!-- Engine -->
+  
+  <!-- Right Wing -->
+  <path d="M600 300 L780 350 L780 450 L600 500 Z" fill="#ffffff" stroke="#cccccc" stroke-width="2" />
+  <rect x="660" y="440" width="60" height="30" rx="5" fill="#333333" /> <!-- Engine -->
+
+  <!-- Fuselage (Wider to fit seating + aisle) -->
+  <rect x="185" y="0" width="430" height="800" fill="#800000" /> <!-- Hull outer edges -->
+  <rect x="200" y="0" width="400" height="800" fill="#9e0000" /> <!-- Main cabin interior -->
+  
+  <!-- Aisle Details (Yellow Lights/Indicators) exactly where the player walks -->
+  <g fill="#ffcc00">
+    <!-- Centered in the 330-470 aisle -->
+    <rect x="390" y="50" width="6" height="20" />
+    <rect x="404" y="50" width="6" height="20" />
+    <rect x="390" y="250" width="6" height="20" />
+    <rect x="404" y="250" width="6" height="20" />
+    <rect x="390" y="450" width="6" height="20" />
+    <rect x="404" y="450" width="6" height="20" />
+    <rect x="390" y="650" width="6" height="20" />
+    <rect x="404" y="650" width="6" height="20" />
+  </g>
+
+  <!-- Exit Door Indicator -->
+  <rect x="195" y="133" width="20" height="30" fill="#a0ffff" stroke="#ffffff" stroke-width="1" />
+</svg>
