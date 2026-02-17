@@ -65,7 +65,7 @@ body {
     width: 800px;
     height: 5000px;
     left: 0;
-    background-image: url('aircraft_map.png');
+    background-image: url('pixil-frame-0 (3).png');
     background-size: 800px 800px;
     background-repeat: repeat-y;
     background-position: center top;
@@ -93,13 +93,11 @@ body {
 
 #map.airport {
     position: absolute;
-    width: 3000px;
-    height: 3000px;
-    background-color: #2c2c36;
-    background-image:
-        linear-gradient(90deg, #3d3d4d 2px, transparent 2px),
-        linear-gradient(#3d3d4d 2px, transparent 2px);
-    background-size: 100px 100px;
+    width: 800px;
+    height: 800px;
+    background-image: url('pixil-frame-0 (7).png');
+    background-size: 800px 800px;
+    background-repeat: no-repeat;
 }
 
 /* Teleport Tile - Position matched to the blue spot in your image */

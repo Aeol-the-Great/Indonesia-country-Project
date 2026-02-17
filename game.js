@@ -30,10 +30,10 @@ function switchMap(target) {
     map.className = target;
 
     if (target === 'airport') {
-        mapWidth = 3000;
-        mapHeight = 3000;
-        playerX = 1500;
-        playerY = 1500;
+        mapWidth = 800;
+        mapHeight = 800;
+        playerX = 400;
+        playerY = 750; // Bottom of runway near the plane
     } else {
         mapWidth = 800;
         mapHeight = 5000;
