@@ -65,7 +65,7 @@ body {
     width: 800px;
     height: 5000px;
     left: 0;
-    background-image: url('aircraft_map.svg');
+    background-image: url('aircraft_map.png');
     background-size: 800px 800px;
     background-repeat: repeat-y;
     background-position: center top;
@@ -73,7 +73,7 @@ body {
 
 .seating {
     position: absolute;
-    width: 130px;
+    width: 330px;
     height: 100%;
     background-image: url('seat.svg');
     background-repeat: repeat;
@@ -82,15 +82,7 @@ body {
 }
 
 .seating.left {
-    left: 200px;
-    -webkit-mask-image: linear-gradient(to bottom,
-            black 0%, black 130px,
-            transparent 130px, transparent 175px,
-            black 175px, black 100%);
-    mask-image: linear-gradient(to bottom,
-            black 0%, black 130px,
-            transparent 130px, transparent 175px,
-            black 175px, black 100%);
+    left: 0;
 }
 
 .seating.right {
@@ -126,8 +118,7 @@ body {
 #map.aircraft #portal-tile {
     display: block;
     top: 133px;
-    left: 195px;
-    /* Matched to new door SVG position */
+    left: 33px;
 }
 
 #player {

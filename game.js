@@ -22,8 +22,8 @@ let mapHeight = 800; // Single tile height
 let cabinLeft = 330; // Left edge of red fuselage
 let cabinRight = 470; // Right edge of red fuselage
 
-// Door logic (Cyan spot on map)
-const doorRect = { x: 195, y: 133, w: 40, h: 40 };
+// Door logic (Blue spot) - Adjusted to be reachable
+const doorRect = { x: 33, y: 133, w: 50, h: 50 };
 
 function switchMap(target) {
     currentLocation = target;
@@ -88,8 +88,8 @@ function update() {
 
     // Collision Logic
     if (currentLocation === 'aircraft') {
-        // Check for Exit Door (Cyan spot)
-        const inDoor = nextX <= doorRect.x + 10 &&
+        // Check for Exit Door (blue spot)
+        const inDoor = nextX >= doorRect.x && nextX <= doorRect.x + doorRect.w &&
             nextY >= doorRect.y && nextY <= doorRect.y + doorRect.h;
 
         if (inDoor) {
@@ -97,14 +97,11 @@ function update() {
             return requestAnimationFrame(update);
         }
 
-        // Restrict to Aisle (Allow deviation for the door)
-        let canExit = (nextY >= 130 && nextY <= 175);
-        let leftBound = canExit ? 195 : cabinLeft;
-
-        if (nextX >= leftBound && nextX <= cabinRight) {
+        // Restrict to Cabin (Red + Grey Areas)
+        if (nextX >= cabinLeft && nextX <= cabinRight) {
             playerX = nextX;
         } else {
-            playerX = Math.max(leftBound, Math.min(nextX, cabinRight));
+            playerX = Math.max(cabinLeft, Math.min(nextX, cabinRight));
         }
     } else {
         // Airport is free roam
