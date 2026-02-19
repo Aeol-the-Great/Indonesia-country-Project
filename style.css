@@ -73,20 +73,27 @@ body {
 
 .seating {
     position: absolute;
-    width: 330px;
     height: 100%;
-    background-image: url('seat.svg');
+    /* Use the new sprite provided by the user */
+    background-image: url('pixilart-drawing (2).png');
     background-repeat: repeat;
-    background-size: 20px 24px;
+    /* Shrunk to 4x4 pixels as requested */
+    background-size: 4px 4px;
     z-index: 1;
 }
 
+/* Positioned to cover the red fuselage areas flanking the aisle */
+/* Assuming red fuselage starts near the door (x=33) and goes to its symmetric opposite (x=767) */
 .seating.left {
-    left: 0;
+    left: 33px;
+    width: 297px;
+    /* From 33 to 330 (beginning of aisle) */
 }
 
 .seating.right {
     left: 470px;
+    width: 297px;
+    /* From 470 (end of aisle) to 767 */
 }
 
 /* Wings and patterns removed because they are in the image */
