@@ -82,18 +82,18 @@ body {
     z-index: 1;
 }
 
-/* Positioned to cover the red fuselage areas flanking the aisle */
-/* Assuming red fuselage starts near the door (x=33) and goes to its symmetric opposite (x=767) */
+/* Positioned to cover ONLY the red fuselage areas flanking the center aisle */
+/* Based on game.js: red fuselage is between x=330 and x=470 */
 .seating.left {
-    left: 33px;
-    width: 297px;
-    /* From 33 to 330 (beginning of aisle) */
+    left: 330px;
+    width: 50px;
+    /* From 330 to 380 */
 }
 
 .seating.right {
-    left: 470px;
-    width: 297px;
-    /* From 470 (end of aisle) to 767 */
+    left: 420px;
+    width: 50px;
+    /* From 420 to 470 */
 }
 
 /* Wings and patterns removed because they are in the image */
