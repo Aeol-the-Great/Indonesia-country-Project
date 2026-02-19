@@ -4,23 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pesona Indonesia: Cultural Tour</title>
-    <meta name="description"
-        content="Begin your cultural journey across the Indonesian archipelago. Board Garuda Airways and prepare to explore the beauty of Pesona Indonesia.">
+    <title>Aircraft to Airport Adventure</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div id="game-container">
-        <div id="map" class="aircraft">
-            <div class="seating left"></div>
-            <div class="seating right"></div>
-            <div id="portal-tile"></div>
+        <div id="map-world">
+            <div id="current-map"></div>
             <div id="player"></div>
         </div>
-        <div id="ui">
-            <div class="coord-display">Flight: GA-1708 | <span id="posX">0</span>, <span id="posY">0</span></div>
-            <div class="instructions">Selamat Datang! Prepare to explore Wonderful Indonesia.</div>
+        <div id="ui-overlay">
+            <div id="map-name">AIRCRAFT CABIN</div>
+            <div id="instructions">Move with WASD or Arrows. Find the exit!</div>
         </div>
     </div>
     <script src="game.js"></script>
