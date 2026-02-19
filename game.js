@@ -10,12 +10,38 @@ ctx.imageSmoothingEnabled = false;
 // UI Setup
 const ui = document.createElement('div');
 ui.id = 'ui-overlay';
-ui.innerHTML = '<div id="map-name" style="background: rgba(20,20,30,0.8); color: #00d2ff; padding: 10px; border-radius: 8px; font-weight: bold;">AIRCRAFT CABIN</div>';
+ui.innerHTML = `
+    <div id="map-name" style="background: rgba(20,20,30,0.8); color: #00d2ff; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 5px;">AIRCRAFT CABIN</div>
+    <div id="interact-hint" style="display: none; background: rgba(255,255,255,0.9); color: #000; width: 30px; height: 30px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: bold; font-family: Arial; border: 2px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.5);">O</div>
+`;
 ui.style.position = 'absolute';
 ui.style.top = '20px';
 ui.style.left = '20px';
 ui.style.zIndex = '100';
 container.appendChild(ui);
+
+// Dialogue System
+const dialogueBox = document.createElement('div');
+dialogueBox.id = 'dialogue-box';
+dialogueBox.style.cssText = `
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    background: rgba(10, 10, 15, 0.95);
+    color: #fff;
+    padding: 25px;
+    border: 3px solid #00d2ff;
+    border-radius: 12px;
+    font-size: 18px;
+    line-height: 1.6;
+    display: none;
+    z-index: 1000;
+    box-shadow: 0 0 30px rgba(0, 210, 255, 0.3);
+    text-align: center;
+`;
+container.appendChild(dialogueBox);
 
 const mapImg = new Image();
 const airportImg = new Image();
@@ -33,40 +59,85 @@ let currentMap = 'aircraft';
 let playerX = 400;
 let playerY = 700;
 let keys = {};
+let isDialogueOpen = false;
 
 const maps = {
     aircraft: {
         img: mapImg,
         name: 'AIRCRAFT CABIN',
-        spawn: { x: 400, y: 700 }, // Bottom center
-        exitRect: { x: 330, y: 133, w: 40, h: 40 }, // Blue spot
+        spawn: { x: 400, y: 700 },
+        exitRect: { x: 330, y: 133, w: 40, h: 40 },
         collisions: [
-            { x: 0, y: 0, w: 330, h: 800 },  // Left wing
-            { x: 470, y: 0, w: 330, h: 800 } // Right wing
+            { x: 0, y: 0, w: 330, h: 800 },
+            { x: 470, y: 0, w: 330, h: 800 }
         ]
     },
     airport: {
         img: airportImg,
         name: 'AIRPORT GATE',
-        spawn: { x: 250, y: 400 }, // Red X spawn
-        exitRect: { x: 370, y: 135, w: 60, h: 20 }, // Orange area under "Gate 1 Entry"
+        spawn: { x: 250, y: 400 },
+        exitRect: { x: 370, y: 135, w: 60, h: 20 },
         collisions: [
-            { x: 0, y: 620, w: 800, h: 180 }, // White aircraft at bottom
-            { x: 0, y: 0, w: 800, h: 135 }    // Light grey lattice/fence at top
+            { x: 0, y: 620, w: 800, h: 180 },
+            { x: 0, y: 0, w: 800, h: 135 }
         ]
     },
     destination: {
         img: destinationImg,
         name: 'DESTINATION',
         spawn: { x: 400, y: 400 },
-        collisions: []
+        collisions: [],
+        interactables: [
+            {
+                x: 65, y: 100, w: 70, h: 250, // Covers the white boxes in top left
+                text: "A hanging hotel that is placed on the top of a massive andesite intrusion\nTo get there you climb on steel rungs like a ladder\nThis place is the pinnacle and reason for my hatred of tourism agency apps."
+            }
+        ]
     }
 };
 
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    keys[key] = true;
+
+    // Interact with O key
+    if (key === 'o' && !isDialogueOpen) {
+        checkInteraction();
+    } else if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ')) {
+        closeDialogue();
+    }
+});
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
+function checkInteraction() {
+    if (currentMap !== 'destination') return;
+
+    const map = maps.destination;
+    map.interactables.forEach(obj => {
+        const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
+        const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 120) { // Interaction range
+            showDialogue(obj.text);
+        }
+    });
+}
+
+function showDialogue(text) {
+    isDialogueOpen = true;
+    dialogueBox.innerText = text;
+    dialogueBox.style.display = 'block';
+}
+
+function closeDialogue() {
+    isDialogueOpen = false;
+    dialogueBox.style.display = 'none';
+}
+
 function update() {
+    if (isDialogueOpen) return;
+
     let nextX = playerX;
     let nextY = playerY;
 
@@ -87,7 +158,6 @@ function update() {
 
     if (!collisionDetected) { playerX = nextX; playerY = nextY; }
 
-    // Map Transition Logic
     if (currentMap === 'aircraft') {
         const exit = maps.aircraft.exitRect;
         if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
@@ -120,6 +190,25 @@ function draw() {
 
     const activeImg = maps[currentMap].img;
     ctx.drawImage(activeImg, camX, camY, MAP_SIZE, MAP_SIZE);
+
+    // Interaction Hint (O icon)
+    const hint = document.getElementById('interact-hint');
+    let showingHint = false;
+    if (currentMap === 'destination' && !isDialogueOpen) {
+        maps.destination.interactables.forEach(obj => {
+            const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
+            const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 120) {
+                hint.style.display = 'flex';
+                hint.style.position = 'absolute';
+                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - 15) + 'px';
+                hint.style.top = (camY + playerY - 40) + 'px';
+                showingHint = true;
+            }
+        });
+    }
+    if (!showingHint) hint.style.display = 'none';
 
     // Draw Player
     ctx.fillStyle = '#00d2ff';
