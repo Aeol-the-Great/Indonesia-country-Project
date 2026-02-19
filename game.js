@@ -1,7 +1,7 @@
-const mapWorld = document.getElementById('map-world');
-const currentMapDiv = document.getElementById('current-map');
-const playerDiv = document.getElementById('player');
-const mapNameLabel = document.getElementById('map-name');
+let mapWorld;
+let currentMapDiv;
+let playerDiv;
+let mapNameLabel;
 
 // Config
 const VIEWPORT_SIZE = 600;
@@ -43,6 +43,7 @@ function init() {
 }
 
 function switchMap(mapId) {
+    console.log("Switching to map:", mapId);
     currentMap = mapId;
     const config = maps[mapId];
 
@@ -130,4 +131,17 @@ function draw() {
     mapWorld.style.transform = `translate(${camX}px, ${camY}px)`;
 }
 
-init();
+// Initialize on load
+window.addEventListener('DOMContentLoaded', () => {
+    mapWorld = document.getElementById('map-world');
+    currentMapDiv = document.getElementById('current-map');
+    playerDiv = document.getElementById('player');
+    mapNameLabel = document.getElementById('map-name');
+
+    if (!mapWorld || !currentMapDiv || !playerDiv || !mapNameLabel) {
+        console.error("Game elements not found!");
+        return;
+    }
+
+    init();
+});
