@@ -19,8 +19,10 @@ container.appendChild(ui);
 
 const mapImg = new Image();
 const airportImg = new Image();
+const destinationImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
+destinationImg.src = 'pixil-frame-1.png';
 
 const VIEWPORT_SIZE = 600;
 const MAP_SIZE = 800;
@@ -36,9 +38,8 @@ const maps = {
     aircraft: {
         img: mapImg,
         name: 'AIRCRAFT CABIN',
-        spawn: { x: 400, y: 700 },
-        exitRect: { x: 330, y: 133, w: 40, h: 40 },
-        // White areas (wings) collision
+        spawn: { x: 400, y: 700 }, // Bottom center
+        exitRect: { x: 330, y: 133, w: 40, h: 40 }, // Blue spot
         collisions: [
             { x: 0, y: 0, w: 330, h: 800 },  // Left wing
             { x: 470, y: 0, w: 330, h: 800 } // Right wing
@@ -47,12 +48,18 @@ const maps = {
     airport: {
         img: airportImg,
         name: 'AIRPORT GATE',
-        spawn: { x: 250, y: 400 },
-        // White (plane) and Light Grey (lattice) collision
+        spawn: { x: 250, y: 400 }, // Red X spawn
+        exitRect: { x: 370, y: 135, w: 60, h: 20 }, // Orange area under "Gate 1 Entry"
         collisions: [
             { x: 0, y: 620, w: 800, h: 180 }, // White aircraft at bottom
             { x: 0, y: 0, w: 800, h: 135 }    // Light grey lattice/fence at top
         ]
+    },
+    destination: {
+        img: destinationImg,
+        name: 'DESTINATION',
+        spawn: { x: 400, y: 400 },
+        collisions: []
     }
 };
 
@@ -80,14 +87,24 @@ function update() {
 
     if (!collisionDetected) { playerX = nextX; playerY = nextY; }
 
+    // Map Transition Logic
     if (currentMap === 'aircraft') {
-        const exit = activeMap.exitRect;
+        const exit = maps.aircraft.exitRect;
         if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
             playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
             currentMap = 'airport';
             playerX = maps.airport.spawn.x;
             playerY = maps.airport.spawn.y;
             document.getElementById('map-name').textContent = maps.airport.name;
+        }
+    } else if (currentMap === 'airport') {
+        const exit = maps.airport.exitRect;
+        if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
+            playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
+            currentMap = 'destination';
+            playerX = maps.destination.spawn.x;
+            playerY = maps.destination.spawn.y;
+            document.getElementById('map-name').textContent = maps.destination.name;
         }
     }
 }
