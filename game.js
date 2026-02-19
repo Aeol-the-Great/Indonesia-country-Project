@@ -20,10 +20,10 @@ const maps = {
     aircraft: {
         name: 'Garuda Cabin',
         class: 'map-aircraft',
-        spawn: { x: 400, y: 750 },
-        // Light blue exit area
-        exitRect: { x: 310, y: 60, w: 50, h: 50 },
-        collisions: [] // No specific collisions requested for aircraft cabin yet
+        spawn: { x: 400, y: 700 },
+        // Light blue exit area - Updated to match visual spot in pixil-frame-0 (3).png
+        exitRect: { x: 330, y: 133, w: 40, h: 40 },
+        collisions: []
     },
     airport: {
         name: 'Gate 1 Terminal',
