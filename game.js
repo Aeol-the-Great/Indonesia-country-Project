@@ -38,13 +38,21 @@ const maps = {
         name: 'AIRCRAFT CABIN',
         spawn: { x: 400, y: 700 },
         exitRect: { x: 330, y: 133, w: 40, h: 40 },
-        collisions: []
+        // White areas (wings) collision
+        collisions: [
+            { x: 0, y: 0, w: 330, h: 800 },  // Left wing
+            { x: 470, y: 0, w: 330, h: 800 } // Right wing
+        ]
     },
     airport: {
         img: airportImg,
         name: 'AIRPORT GATE',
         spawn: { x: 250, y: 400 },
-        collisions: [{ x: 0, y: 620, w: 800, h: 180 }]
+        // White (plane) and Light Grey (lattice) collision
+        collisions: [
+            { x: 0, y: 620, w: 800, h: 180 }, // White aircraft at bottom
+            { x: 0, y: 0, w: 800, h: 135 }    // Light grey lattice/fence at top
+        ]
     }
 };
 
