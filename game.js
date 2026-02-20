@@ -12,6 +12,7 @@ const ui = document.createElement('div');
 ui.id = 'ui-overlay';
 ui.innerHTML = `
     <div id="map-name" style="background: rgba(20,20,30,0.8); color: #00d2ff; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 5px;">AIRCRAFT CABIN</div>
+    <div id="objective-display" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 5px; border-left: 4px solid #00d2ff;">○ Objective: Purchase Climbers Gear</div>
     <div id="interact-hint" style="display: none; background: rgba(255,255,255,0.9); color: #000; width: 30px; height: 30px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: bold; font-family: Arial; border: 2px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.5);">O</div>
 `;
 ui.style.position = 'absolute';
@@ -43,12 +44,86 @@ dialogueBox.style.cssText = `
 `;
 container.appendChild(dialogueBox);
 
+// Shop System
+const shopUI = document.createElement('div');
+shopUI.id = 'shop-ui';
+shopUI.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    background: rgba(15, 15, 25, 0.95);
+    color: #fff;
+    padding: 30px;
+    border: 3px solid #00d2ff;
+    border-radius: 16px;
+    display: none;
+    z-index: 2000;
+    box-shadow: 0 0 50px rgba(0, 210, 255, 0.4);
+    text-align: center;
+`;
+container.appendChild(shopUI);
+
+let isShopOpen = false;
+let inventory = {
+    climbers_gear: false
+};
+
+function openShop() {
+    isShopOpen = true;
+    updateShopUI();
+    shopUI.style.display = 'block';
+}
+
+function updateShopUI() {
+    shopUI.innerHTML = `
+        <h2 style="color: #00d2ff; margin-bottom: 20px; font-size: 24px; letter-spacing: 2px;">EQUIPMENT SHOP</h2>
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: rgba(0, 210, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(0, 210, 255, 0.3);">
+                <img src="Rope.png" style="width: 50px; height: 50px; image-rendering: pixelated;">
+            </div>
+            <p style="margin-bottom: 15px; font-size: 16px;">Essential gear for the andesite intrusion climb.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 210, 255, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 210, 255, 0.3);">
+                <span style="font-weight: bold;">Climbers Gear</span>
+                ${inventory.climbers_gear
+            ? '<span style="color: #4CAF50; font-weight: bold;">PURCHASED</span>'
+            : '<button onclick="buyItem(\'climbers_gear\')" style="background: #00d2ff; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all 0.2s;">BUY</button>'}
+            </div>
+        </div>
+        <button onclick="closeShop()" style="background: none; border: 2px solid #fff; color: #fff; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s;">CLOSE</button>
+    `;
+}
+
+window.buyItem = function (itemId) {
+    inventory[itemId] = true;
+    updateShopUI();
+    updateObjective();
+};
+
+window.closeShop = function () {
+    isShopOpen = false;
+    shopUI.style.display = 'none';
+};
+
+function updateObjective() {
+    const objectiveEl = document.getElementById('objective-display');
+    if (inventory.climbers_gear) {
+        objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Equipment Acquired</span>';
+    } else {
+        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Purchase Climbers Gear</span>';
+    }
+}
+
+// Update UI setup to include objective and shop trigger hint
 const mapImg = new Image();
 const airportImg = new Image();
 const destinationImg = new Image();
+const ropeImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
 destinationImg.src = 'pixil-frame-1.png';
+ropeImg.src = 'Rope.png';
 
 const VIEWPORT_SIZE = 600;
 const MAP_SIZE = 800;
@@ -90,7 +165,8 @@ const maps = {
         interactables: [
             {
                 x: 65, y: 100, w: 70, h: 250, // Covers the white boxes in top left
-                text: "A hanging hotel that is placed on the top of a massive andesite intrusion\nTo get there you climb on steel rungs like a ladder\nThis place is the pinnacle and reason for my hatred of tourism agency apps."
+                text: "A hanging hotel that is placed on the top of a massive andesite intrusion\nTo get there you climb on steel rungs like a ladder\nThis place is the pinnacle and reason for my hatred of tourism agency apps.",
+                type: 'shop'
             }
         ]
     }
@@ -101,10 +177,12 @@ window.addEventListener('keydown', e => {
     keys[key] = true;
 
     // Interact with O key
-    if (key === 'o' && !isDialogueOpen) {
+    if (key === 'o' && !isDialogueOpen && !isShopOpen) {
         checkInteraction();
     } else if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ')) {
         closeDialogue();
+    } else if (isShopOpen && key === 'escape') {
+        closeShop();
     }
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
@@ -119,7 +197,11 @@ function checkInteraction() {
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance < 120) { // Interaction range
-            showDialogue(obj.text);
+            if (obj.type === 'shop') {
+                openShop();
+            } else {
+                showDialogue(obj.text);
+            }
         }
     });
 }
@@ -136,7 +218,7 @@ function closeDialogue() {
 }
 
 function update() {
-    if (isDialogueOpen) return;
+    if (isDialogueOpen || isShopOpen) return;
 
     let nextX = playerX;
     let nextY = playerY;
@@ -194,7 +276,7 @@ function draw() {
     // Interaction Hint (O icon)
     const hint = document.getElementById('interact-hint');
     let showingHint = false;
-    if (currentMap === 'destination' && !isDialogueOpen) {
+    if (currentMap === 'destination' && !isDialogueOpen && !isShopOpen) {
         maps.destination.interactables.forEach(obj => {
             const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
             const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
@@ -224,4 +306,5 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+updateObjective();
 gameLoop();
