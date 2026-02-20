@@ -13,7 +13,8 @@ ui.id = 'ui-overlay';
 ui.innerHTML = `
     <div id="map-name" style="background: rgba(20,20,30,0.8); color: #00d2ff; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 5px;">AIRCRAFT CABIN</div>
     <div id="objective-display" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 5px; border-left: 4px solid #00d2ff;">○ Objective: Purchase Climbers Gear</div>
-    <div id="interact-hint" style="display: none; background: rgba(255,255,255,0.9); color: #000; width: 30px; height: 30px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: bold; font-family: Arial; border: 2px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.5);">O</div>
+    <div id="instructions" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0.8; margin-bottom: 5px;">Move with WASD or Arrows. Find the exit!</div>
+    <div id="interact-hint" style="display: none; background: rgba(255,255,255,0.9); color: #000; width: 30px; height: 30px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; font-family: Arial; border: 2px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.5);">O</div>
 `;
 ui.style.position = 'absolute';
 ui.style.top = '20px';
@@ -511,5 +512,16 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-updateObjective();
-gameLoop();
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg];
+let loadedCount = 0;
+images.forEach(img => {
+    img.onload = () => {
+        loadedCount++;
+        if (loadedCount === images.length) {
+            updateObjective();
+            gameLoop();
+        }
+    };
+    // If image is already cached/loaded
+    if (img.complete) img.onload();
+});
