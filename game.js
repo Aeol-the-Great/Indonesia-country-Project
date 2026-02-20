@@ -66,6 +66,15 @@ shopUI.style.cssText = `
 container.appendChild(shopUI);
 
 let isShopOpen = false;
+let isClimbing = false;
+let climbProgress = 0; // 0 to 7 (number of rungs)
+let timingArrowPos = 0;
+let timingArrowDir = 1;
+let lastHitResult = ''; // 'GREAT', 'MISS', or ''
+let feedbackTimer = 0;
+const RUNG_COUNT = 7;
+const RUNG_Y_POSITIONS = [520, 450, 380, 310, 240, 170, 100]; // Y positions for each rung
+
 let debugMode = false;
 let inventory = {
     climbers_gear: false
@@ -109,10 +118,13 @@ window.closeShop = function () {
 
 function updateObjective() {
     const objectiveEl = document.getElementById('objective-display');
+    const instructionEl = document.getElementById('instructions');
     if (inventory.climbers_gear) {
         objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Equipment Acquired</span>';
+        instructionEl.innerText = "Move to the rock face and press SPACE to climb!";
     } else {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Purchase Climbers Gear</span>';
+        instructionEl.innerText = "Find the equipment shop at Gunung Parang.";
     }
 }
 
@@ -121,10 +133,12 @@ const mapImg = new Image();
 const airportImg = new Image();
 const destinationImg = new Image();
 const ropeImg = new Image();
+const climbImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
 destinationImg.src = 'pixil-frame-1.png';
 ropeImg.src = 'Rope.png';
+climbImg.src = 'pixil-frame-0 (1) (2).png';
 
 const VIEWPORT_SIZE = 600;
 const MAP_SIZE = 800;
@@ -186,6 +200,10 @@ const maps = {
                 x: 128, y: 160, w: 144, h: 544,
                 text: "A hanging hotel that is placed on the top of a massive andesite intrusion\nTo get there you climb on steel rungs like a ladder\nThis place is the pinnacle and reason for my hatred of tourism agency apps.",
                 type: 'shop'
+            },
+            {
+                x: 1200, y: 0, w: 400, h: 600, // Rock face area
+                type: 'climb_trigger'
             }
         ]
     }
@@ -196,18 +214,71 @@ window.addEventListener('keydown', e => {
     keys[key] = true;
 
     // Interact with O key
-    if (key === 'o' && !isDialogueOpen && !isShopOpen) {
+    if (key === 'o' && !isDialogueOpen && !isShopOpen && !isClimbing) {
         checkInteraction();
     } else if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ')) {
         closeDialogue();
     } else if (isShopOpen && key === 'escape') {
         closeShop();
+    } else if (key === ' ' && !isDialogueOpen && !isShopOpen) {
+        if (isClimbing) {
+            handleClimbInput();
+        } else {
+            checkClimbStart();
+        }
     } else if (key === 'f3') {
         debugMode = !debugMode;
         console.log('Debug mode: ' + debugMode);
     }
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function checkClimbStart() {
+    if (currentMap !== 'destination' || !inventory.climbers_gear) return;
+
+    const map = maps.destination;
+    map.interactables.forEach(obj => {
+        if (obj.type === 'climb_trigger') {
+            const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
+            const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 200) {
+                startClimbing();
+            }
+        }
+    });
+}
+
+function startClimbing() {
+    isClimbing = true;
+    climbProgress = 0;
+    timingArrowPos = 0;
+    document.getElementById('map-name').textContent = "CLIMBING VIA FERRATA";
+}
+
+function handleClimbInput() {
+    // Check if arrow is in the center (center is 0.5, range 0.4 to 0.6)
+    if (timingArrowPos > 0.4 && timingArrowPos < 0.6) {
+        climbProgress++;
+        lastHitResult = 'GREAT!';
+        feedbackTimer = 60;
+        if (climbProgress >= RUNG_COUNT) {
+            finishClimb();
+        }
+    } else {
+        // Fail: maybe slip down a bit
+        climbProgress = Math.max(0, climbProgress - 1);
+        lastHitResult = 'MISS!';
+        feedbackTimer = 60;
+    }
+}
+
+function finishClimb() {
+    isClimbing = false;
+    document.getElementById('map-name').textContent = maps.destination.name;
+    showDialogue("You've reached the top of the cliff! The Hanging Hotel awaits.");
+}
 
 function checkInteraction() {
     if (currentMap !== 'destination') return;
@@ -241,6 +312,13 @@ function closeDialogue() {
 
 function update() {
     if (isDialogueOpen || isShopOpen) return;
+
+    if (isClimbing) {
+        timingArrowPos += 0.02 * timingArrowDir;
+        if (timingArrowPos > 1 || timingArrowPos < 0) timingArrowDir *= -1;
+        if (feedbackTimer > 0) feedbackTimer--;
+        return;
+    }
 
     let moveX = 0;
     let moveY = 0;
@@ -296,6 +374,11 @@ function draw() {
     ctx.fillStyle = '#0a0a0c';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    if (isClimbing) {
+        drawClimbingMinigame();
+        return;
+    }
+
     const activeMap = maps[currentMap];
     const mapSize = activeMap.size || MAP_SIZE;
 
@@ -312,18 +395,26 @@ function draw() {
         });
     }
 
-    // Interaction Hint (O icon)
+    // Interaction Hint (O or SPACE icon)
     const hint = document.getElementById('interact-hint');
     let showingHint = false;
-    if (currentMap === 'destination' && !isDialogueOpen && !isShopOpen) {
+    if (currentMap === 'destination' && !isDialogueOpen && !isShopOpen && !isClimbing) {
         maps.destination.interactables.forEach(obj => {
             const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
             const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
             const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < 120) {
+
+            const triggerDist = obj.type === 'climb_trigger' ? 200 : 120;
+
+            if (distance < triggerDist) {
+                if (obj.type === 'climb_trigger' && !inventory.climbers_gear) return;
+
                 hint.style.display = 'flex';
+                hint.innerText = obj.type === 'climb_trigger' ? 'SPACE' : 'O';
+                hint.style.width = obj.type === 'climb_trigger' ? '60px' : '30px';
+                hint.style.borderRadius = obj.type === 'climb_trigger' ? '8px' : '50%';
                 hint.style.position = 'absolute';
-                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - 15) + 'px';
+                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - (obj.type === 'climb_trigger' ? 30 : 15)) + 'px';
                 hint.style.top = (camY + playerY - 40) + 'px';
                 showingHint = true;
             }
@@ -337,6 +428,81 @@ function draw() {
     ctx.lineWidth = 2;
     ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
     ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+}
+
+function drawClimbingMinigame() {
+    // Draw the climbing map
+    ctx.drawImage(climbImg, 0, 0, 600, 600);
+
+    // Draw Player on rungs
+    const pY = climbProgress >= RUNG_COUNT ? RUNG_Y_POSITIONS[RUNG_COUNT - 1] : RUNG_Y_POSITIONS[climbProgress];
+    ctx.fillStyle = '#00d2ff';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    // Draw rope behind player
+    if (inventory.climbers_gear) {
+        ctx.strokeStyle = '#e91e63'; // Pink/Red rope
+        ctx.beginPath();
+        ctx.moveTo(300, 600);
+        ctx.lineTo(300, pY + 15);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = '#00d2ff';
+    ctx.strokeStyle = '#fff';
+    ctx.fillRect(285, pY, 30, 30);
+    ctx.strokeRect(285, pY, 30, 30);
+
+    // Draw Feedback
+    if (feedbackTimer > 0) {
+        ctx.fillStyle = lastHitResult === 'GREAT!' ? '#4CAF50' : '#f44336';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(lastHitResult, 300, 300);
+    }
+
+    // Draw Timing Bar
+    const barX = 150;
+    const barY = 550;
+    const barW = 300;
+    const barH = 25;
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(barX, barY - 2, barW, barH + 4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.strokeRect(barX, barY - 2, barW, barH + 4);
+
+    // Center Target Glow
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#4CAF50';
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillRect(barX + barW * 0.4, barY, barW * 0.2, barH);
+    ctx.shadowBlur = 0;
+
+    // Moving Arrow (Sleeker design)
+    const arrowX = barX + barW * timingArrowPos;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(arrowX - 2, barY - 5, 4, barH + 10);
+
+    ctx.fillStyle = '#ffca28';
+    ctx.beginPath();
+    ctx.moveTo(arrowX, barY - 10);
+    ctx.lineTo(arrowX - 8, barY - 22);
+    ctx.lineTo(arrowX + 8, barY - 22);
+    ctx.fill();
+
+    // Instructions
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('PRESS SPACE IN THE GREEN ZONE TO CLIMB THE PEAK', 300, 520);
+
+    // Progress
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '14px Arial';
+    ctx.fillText(`HEIGHT: ${climbProgress}/${RUNG_COUNT}`, 300, 500);
 }
 
 function gameLoop() {
