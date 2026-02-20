@@ -159,12 +159,24 @@ const maps = {
     },
     destination: {
         img: destinationImg,
-        name: 'DESTINATION',
+        name: 'GUNUNG PARANG VIA FERRATA',
+        size: 1600,
         spawn: { x: 400, y: 400 },
-        collisions: [],
+        collisions: [
+            // Four squares (White boxes)
+            { x: 128, y: 160, w: 144, h: 544 },
+            // House
+            { x: 816, y: 784, w: 464, h: 512 },
+            // Rock Face (Top Right)
+            { x: 1168, y: 0, w: 432, h: 160 },
+            { x: 1216, y: 160, w: 384, h: 160 },
+            { x: 1312, y: 320, w: 288, h: 160 },
+            { x: 1440, y: 480, w: 160, h: 160 },
+            { x: 1536, y: 640, w: 64, h: 80 }
+        ],
         interactables: [
             {
-                x: 65, y: 100, w: 70, h: 250, // Covers the white boxes in top left
+                x: 128, y: 160, w: 144, h: 544, // Covers the white boxes in top left
                 text: "A hanging hotel that is placed on the top of a massive andesite intrusion\nTo get there you climb on steel rungs like a ladder\nThis place is the pinnacle and reason for my hatred of tourism agency apps.",
                 type: 'shop'
             }
@@ -228,10 +240,12 @@ function update() {
     if (keys['a'] || keys['arrowleft']) nextX -= SPEED;
     if (keys['d'] || keys['arrowright']) nextX += SPEED;
 
-    nextX = Math.max(0, Math.min(nextX, MAP_SIZE - PLAYER_SIZE));
-    nextY = Math.max(0, Math.min(nextY, MAP_SIZE - PLAYER_SIZE));
-
     const activeMap = maps[currentMap];
+    const mapSize = activeMap.size || MAP_SIZE;
+
+    nextX = Math.max(0, Math.min(nextX, mapSize - PLAYER_SIZE));
+    nextY = Math.max(0, Math.min(nextY, mapSize - PLAYER_SIZE));
+
     let collisionDetected = false;
     activeMap.collisions.forEach(rect => {
         if (nextX < rect.x + rect.w && nextX + PLAYER_SIZE > rect.x &&
@@ -265,13 +279,16 @@ function draw() {
     ctx.fillStyle = '#0a0a0c';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const activeMap = maps[currentMap];
+    const mapSize = activeMap.size || MAP_SIZE;
+
     let camX = 300 - playerX - (PLAYER_SIZE / 2);
     let camY = 300 - playerY - (PLAYER_SIZE / 2);
-    camX = Math.min(0, Math.max(camX, VIEWPORT_SIZE - MAP_SIZE));
-    camY = Math.min(0, Math.max(camY, VIEWPORT_SIZE - MAP_SIZE));
+    camX = Math.min(0, Math.max(camX, VIEWPORT_SIZE - mapSize));
+    camY = Math.min(0, Math.max(camY, VIEWPORT_SIZE - mapSize));
 
-    const activeImg = maps[currentMap].img;
-    ctx.drawImage(activeImg, camX, camY, MAP_SIZE, MAP_SIZE);
+    const activeImg = activeMap.img;
+    ctx.drawImage(activeImg, camX, camY, mapSize, mapSize);
 
     // Interaction Hint (O icon)
     const hint = document.getElementById('interact-hint');
