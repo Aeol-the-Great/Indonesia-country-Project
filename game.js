@@ -66,6 +66,7 @@ shopUI.style.cssText = `
 container.appendChild(shopUI);
 
 let isShopOpen = false;
+let debugMode = false;
 let inventory = {
     climbers_gear: false
 };
@@ -163,20 +164,26 @@ const maps = {
         size: 1600,
         spawn: { x: 400, y: 400 },
         collisions: [
-            // Four squares (White boxes)
-            { x: 128, y: 160, w: 144, h: 544 },
+            // Four squares (Equipment boxes) - individually defined
+            { x: 128, y: 160, w: 144, h: 112 }, // Box 1
+            { x: 128, y: 304, w: 144, h: 112 }, // Box 2
+            { x: 128, y: 448, w: 144, h: 112 }, // Box 3
+            { x: 128, y: 592, w: 144, h: 112 }, // Box 4
             // House
             { x: 816, y: 784, w: 464, h: 512 },
-            // Rock Face (Top Right)
-            { x: 1168, y: 0, w: 432, h: 160 },
-            { x: 1216, y: 160, w: 384, h: 160 },
-            { x: 1312, y: 320, w: 288, h: 160 },
-            { x: 1440, y: 480, w: 160, h: 160 },
-            { x: 1536, y: 640, w: 64, h: 80 }
+            // Rock Face (Top Right) - more granular stair-step approach
+            { x: 1136, y: 0, w: 464, h: 112 },
+            { x: 1168, y: 112, w: 432, h: 112 },
+            { x: 1216, y: 224, w: 384, h: 112 },
+            { x: 1264, y: 336, w: 336, h: 112 },
+            { x: 1328, y: 448, w: 272, h: 112 },
+            { x: 1408, y: 560, w: 192, h: 112 },
+            { x: 1488, y: 672, w: 112, h: 112 },
+            { x: 1552, y: 784, w: 48, h: 80 }
         ],
         interactables: [
             {
-                x: 128, y: 160, w: 144, h: 544, // Covers the white boxes in top left
+                x: 128, y: 160, w: 144, h: 544,
                 text: "A hanging hotel that is placed on the top of a massive andesite intrusion\nTo get there you climb on steel rungs like a ladder\nThis place is the pinnacle and reason for my hatred of tourism agency apps.",
                 type: 'shop'
             }
@@ -195,6 +202,9 @@ window.addEventListener('keydown', e => {
         closeDialogue();
     } else if (isShopOpen && key === 'escape') {
         closeShop();
+    } else if (key === 'f3') {
+        debugMode = !debugMode;
+        console.log('Debug mode: ' + debugMode);
     }
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
@@ -232,27 +242,34 @@ function closeDialogue() {
 function update() {
     if (isDialogueOpen || isShopOpen) return;
 
-    let nextX = playerX;
-    let nextY = playerY;
+    let moveX = 0;
+    let moveY = 0;
 
-    if (keys['w'] || keys['arrowup']) nextY -= SPEED;
-    if (keys['s'] || keys['arrowdown']) nextY += SPEED;
-    if (keys['a'] || keys['arrowleft']) nextX -= SPEED;
-    if (keys['d'] || keys['arrowright']) nextX += SPEED;
+    if (keys['w'] || keys['arrowup']) moveY -= SPEED;
+    if (keys['s'] || keys['arrowdown']) moveY += SPEED;
+    if (keys['a'] || keys['arrowleft']) moveX -= SPEED;
+    if (keys['d'] || keys['arrowright']) moveX += SPEED;
 
     const activeMap = maps[currentMap];
     const mapSize = activeMap.size || MAP_SIZE;
 
-    nextX = Math.max(0, Math.min(nextX, mapSize - PLAYER_SIZE));
-    nextY = Math.max(0, Math.min(nextY, mapSize - PLAYER_SIZE));
-
-    let collisionDetected = false;
+    // Check X movement
+    let nextX = Math.max(0, Math.min(playerX + moveX, mapSize - PLAYER_SIZE));
+    let collisionX = false;
     activeMap.collisions.forEach(rect => {
         if (nextX < rect.x + rect.w && nextX + PLAYER_SIZE > rect.x &&
-            nextY < rect.y + rect.h && nextY + PLAYER_SIZE > rect.y) collisionDetected = true;
+            playerY < rect.y + rect.h && playerY + PLAYER_SIZE > rect.y) collisionX = true;
     });
+    if (!collisionX) playerX = nextX;
 
-    if (!collisionDetected) { playerX = nextX; playerY = nextY; }
+    // Check Y movement
+    let nextY = Math.max(0, Math.min(playerY + moveY, mapSize - PLAYER_SIZE));
+    let collisionY = false;
+    activeMap.collisions.forEach(rect => {
+        if (playerX < rect.x + rect.w && playerX + PLAYER_SIZE > rect.x &&
+            nextY < rect.y + rect.h && nextY + PLAYER_SIZE > rect.y) collisionY = true;
+    });
+    if (!collisionY) playerY = nextY;
 
     if (currentMap === 'aircraft') {
         const exit = maps.aircraft.exitRect;
@@ -287,8 +304,13 @@ function draw() {
     camX = Math.min(0, Math.max(camX, VIEWPORT_SIZE - mapSize));
     camY = Math.min(0, Math.max(camY, VIEWPORT_SIZE - mapSize));
 
-    const activeImg = activeMap.img;
-    ctx.drawImage(activeImg, camX, camY, mapSize, mapSize);
+    // Draw Collision Debug (F3 to toggle)
+    if (debugMode) {
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
+        activeMap.collisions.forEach(rect => {
+            ctx.fillRect(camX + rect.x, camY + rect.y, rect.w, rect.h);
+        });
+    }
 
     // Interaction Hint (O icon)
     const hint = document.getElementById('interact-hint');
