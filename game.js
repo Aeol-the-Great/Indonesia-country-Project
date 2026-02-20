@@ -388,6 +388,9 @@ function draw() {
     camX = Math.min(0, Math.max(camX, VIEWPORT_SIZE - mapSize));
     camY = Math.min(0, Math.max(camY, VIEWPORT_SIZE - mapSize));
 
+    const activeImg = activeMap.img;
+    ctx.drawImage(activeImg, camX, camY, mapSize, mapSize);
+
     // Draw Collision Debug (F3 to toggle)
     if (debugMode) {
         ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
