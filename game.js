@@ -79,7 +79,7 @@ const RUNG_Y_POSITIONS = [520, 450, 380, 310, 240, 170, 100]; // Y positions for
 let splashActive = false;
 let splashTimer = 0;
 let splashAlpha = 0;
-let splashPatches = []; // For "splash all over" effect
+let splashPhase = 'image'; // 'image', 'black', 'text'
 
 let debugMode = false;
 let inventory = {
@@ -285,23 +285,12 @@ function handleClimbInput() {
 function finishClimb() {
     isClimbing = false;
     document.getElementById('map-name').textContent = maps.destination.name;
-    showDialogue("You've reached the top of the cliff! The Hanging Hotel awaits.");
 
-    // Trigger splash
+    // Start Cutscene
     splashActive = true;
-    splashTimer = 240; // 4 seconds
+    splashTimer = 360; // Total duration: 6 seconds
     splashAlpha = 0;
-    splashPatches = [];
-    for (let i = 0; i < 15; i++) {
-        splashPatches.push({
-            x: Math.random() * 600,
-            y: Math.random() * 600,
-            size: 50 + Math.random() * 150,
-            rotation: Math.random() * Math.PI * 2,
-            speedX: (Math.random() - 0.5) * 4,
-            speedY: (Math.random() - 0.5) * 4
-        });
-    }
+    splashPhase = 'image';
 }
 
 function checkInteraction() {
@@ -346,14 +335,42 @@ function update() {
 
     if (splashActive) {
         splashTimer--;
-        if (splashTimer > 200) { // Fade in over 40 frames
-            splashAlpha = Math.min(1, splashAlpha + 0.025);
-        } else if (splashTimer < 40) { // Fade out over 40 frames
-            splashAlpha = Math.max(0, splashAlpha - 0.025);
+
+        // Image Phase (3 seconds = 180 frames)
+        if (splashTimer > 180) {
+            splashPhase = 'image';
+            // Fade in (first 60 frames)
+            if (splashTimer > 300) {
+                splashAlpha = Math.min(1, splashAlpha + 0.05);
+            }
+            // Fade out (last 60 frames of image phase)
+            else if (splashTimer < 240) {
+                splashAlpha = Math.max(0, splashAlpha - 0.05);
+            }
+            // Stay opaque (middle 60 frames)
+            else {
+                splashAlpha = 1;
+            }
         }
+        // Black Screen Phase (2 seconds = 120 frames)
+        else if (splashTimer > 60) {
+            if (splashPhase !== 'black') {
+                splashPhase = 'black';
+                splashAlpha = 0; // Reset alpha for black screen fade-in
+            }
+            splashAlpha = Math.min(1, splashAlpha + 0.05);
+        }
+        // Text Phase (1 second = 60 frames)
+        else {
+            splashPhase = 'text';
+            splashAlpha = 1; // Text is always fully visible during its phase
+        }
+
         if (splashTimer <= 0) {
             splashActive = false;
+            showDialogue("You've reached the top of the cliff! The Hanging Hotel awaits.");
         }
+        return;
     }
 
     let moveX = 0;
@@ -468,29 +485,26 @@ function draw() {
     ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
     ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
 
-    // Draw Splash Overlay
+    // Draw Cutscene Overlay
     if (splashActive) {
-        ctx.save();
-        ctx.globalAlpha = splashAlpha;
+        ctx.fillStyle = '#000';
 
-        // Draw main centered one
-        ctx.drawImage(splashImg, 50, 50, 500, 500);
-
-        // Draw scattered ones
-        splashPatches.forEach(patch => {
+        if (splashPhase === 'image') {
             ctx.save();
-            ctx.translate(patch.x, patch.y);
-            ctx.rotate(patch.rotation);
-            ctx.drawImage(splashImg, -patch.size / 2, -patch.size / 2, patch.size, patch.size);
+            ctx.globalAlpha = splashAlpha;
+            ctx.drawImage(splashImg, 0, 0, 600, 600);
             ctx.restore();
+        } else if (splashPhase === 'black' || splashPhase === 'text') {
+            ctx.globalAlpha = splashAlpha;
+            ctx.fillRect(0, 0, 600, 600);
 
-            // Move them slightly
-            patch.x += patch.speedX;
-            patch.y += patch.speedY;
-            patch.rotation += 0.01;
-        });
-
-        ctx.restore();
+            if (splashPhase === 'text') {
+                ctx.fillStyle = '#fff';
+                ctx.font = '32px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('The Next Day...', 300, 300);
+            }
+        }
     }
 }
 
