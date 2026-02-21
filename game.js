@@ -141,12 +141,14 @@ const destinationImg = new Image();
 const ropeImg = new Image();
 const climbImg = new Image();
 const splashImg = new Image();
+const hotelImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
 destinationImg.src = 'pixil-frame-1.png';
 ropeImg.src = 'Rope.png';
 climbImg.src = 'pixil-frame-0 (1) (2).png';
 splashImg.src = 'pixil-frame-0 (11).png';
+hotelImg.src = 'pixil-frame-0 (12).png';
 
 const VIEWPORT_SIZE = 600;
 const MAP_SIZE = 800;
@@ -212,6 +214,19 @@ const maps = {
             {
                 x: 1200, y: 0, w: 400, h: 600, // Rock face area
                 type: 'climb_trigger'
+            }
+        ]
+    },
+    hotel: {
+        img: hotelImg,
+        name: 'SKY LODGE - THE HANGING HOTEL',
+        spawn: { x: 300, y: 400 },
+        collisions: [], // To be added if needed, or keeping it open
+        interactables: [
+            {
+                x: 0, y: 0, w: 600, h: 600,
+                text: "The view from here is breathtaking. You feel like you're floating above the world.",
+                type: 'dialogue'
             }
         ]
     }
@@ -321,6 +336,14 @@ function showDialogue(text) {
 function closeDialogue() {
     isDialogueOpen = false;
     dialogueBox.style.display = 'none';
+
+    // If we just finished the climbing cutscene, transition to the hotel
+    if (currentMap === 'destination' && !isClimbing && !splashActive && playerY < 200) {
+        currentMap = 'hotel';
+        playerX = maps.hotel.spawn.x;
+        playerY = maps.hotel.spawn.y;
+        document.getElementById('map-name').textContent = maps.hotel.name;
+    }
 }
 
 function update() {
@@ -479,11 +502,13 @@ function draw() {
     if (!showingHint) hint.style.display = 'none';
 
     // Draw Player
-    ctx.fillStyle = '#00d2ff';
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
-    ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+    if (!isClimbing && !splashActive) {
+        ctx.fillStyle = '#00d2ff';
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+        ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+    }
 
     // Draw Cutscene Overlay
     if (splashActive) {
@@ -514,16 +539,17 @@ function drawClimbingMinigame() {
 
     // Draw Player on rungs
     const pY = climbProgress >= RUNG_COUNT ? RUNG_Y_POSITIONS[RUNG_COUNT - 1] : RUNG_Y_POSITIONS[climbProgress];
-    ctx.fillStyle = '#00d2ff';
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3;
-    // Draw rope behind player
+
+    // Rope extending from TOP (shrinking as we go up)
     if (inventory.climbers_gear) {
-        ctx.strokeStyle = '#e91e63'; // Pink/Red rope
+        ctx.strokeStyle = '#e91e63'; // Signature Rope Color
+        ctx.lineWidth = 4;
+        ctx.setLineDash([5, 5]); // Optional: make it look like a cable
         ctx.beginPath();
-        ctx.moveTo(300, 600);
-        ctx.lineTo(300, pY + 15);
+        ctx.moveTo(300, 0); // Start at top
+        ctx.lineTo(300, pY + 15); // End at player
         ctx.stroke();
+        ctx.setLineDash([]); // Reset
     }
 
     ctx.fillStyle = '#00d2ff';
@@ -589,7 +615,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg];
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, hotelImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
