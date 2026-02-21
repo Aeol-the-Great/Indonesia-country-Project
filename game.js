@@ -76,6 +76,11 @@ let feedbackTimer = 0;
 const RUNG_COUNT = 7;
 const RUNG_Y_POSITIONS = [520, 450, 380, 310, 240, 170, 100]; // Y positions for each rung
 
+let splashActive = false;
+let splashTimer = 0;
+let splashAlpha = 0;
+let splashPatches = []; // For "splash all over" effect
+
 let debugMode = false;
 let inventory = {
     climbers_gear: false
@@ -135,11 +140,13 @@ const airportImg = new Image();
 const destinationImg = new Image();
 const ropeImg = new Image();
 const climbImg = new Image();
+const splashImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
 destinationImg.src = 'pixil-frame-1.png';
 ropeImg.src = 'Rope.png';
 climbImg.src = 'pixil-frame-0 (1) (2).png';
+splashImg.src = 'pixil-frame-0 (11).png';
 
 const VIEWPORT_SIZE = 600;
 const MAP_SIZE = 800;
@@ -279,6 +286,22 @@ function finishClimb() {
     isClimbing = false;
     document.getElementById('map-name').textContent = maps.destination.name;
     showDialogue("You've reached the top of the cliff! The Hanging Hotel awaits.");
+
+    // Trigger splash
+    splashActive = true;
+    splashTimer = 240; // 4 seconds
+    splashAlpha = 0;
+    splashPatches = [];
+    for (let i = 0; i < 15; i++) {
+        splashPatches.push({
+            x: Math.random() * 600,
+            y: Math.random() * 600,
+            size: 50 + Math.random() * 150,
+            rotation: Math.random() * Math.PI * 2,
+            speedX: (Math.random() - 0.5) * 4,
+            speedY: (Math.random() - 0.5) * 4
+        });
+    }
 }
 
 function checkInteraction() {
@@ -319,6 +342,18 @@ function update() {
         if (timingArrowPos > 1 || timingArrowPos < 0) timingArrowDir *= -1;
         if (feedbackTimer > 0) feedbackTimer--;
         return;
+    }
+
+    if (splashActive) {
+        splashTimer--;
+        if (splashTimer > 200) { // Fade in over 40 frames
+            splashAlpha = Math.min(1, splashAlpha + 0.025);
+        } else if (splashTimer < 40) { // Fade out over 40 frames
+            splashAlpha = Math.max(0, splashAlpha - 0.025);
+        }
+        if (splashTimer <= 0) {
+            splashActive = false;
+        }
     }
 
     let moveX = 0;
@@ -432,6 +467,31 @@ function draw() {
     ctx.lineWidth = 2;
     ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
     ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+
+    // Draw Splash Overlay
+    if (splashActive) {
+        ctx.save();
+        ctx.globalAlpha = splashAlpha;
+
+        // Draw main centered one
+        ctx.drawImage(splashImg, 50, 50, 500, 500);
+
+        // Draw scattered ones
+        splashPatches.forEach(patch => {
+            ctx.save();
+            ctx.translate(patch.x, patch.y);
+            ctx.rotate(patch.rotation);
+            ctx.drawImage(splashImg, -patch.size / 2, -patch.size / 2, patch.size, patch.size);
+            ctx.restore();
+
+            // Move them slightly
+            patch.x += patch.speedX;
+            patch.y += patch.speedY;
+            patch.rotation += 0.01;
+        });
+
+        ctx.restore();
+    }
 }
 
 function drawClimbingMinigame() {
@@ -515,7 +575,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg];
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
