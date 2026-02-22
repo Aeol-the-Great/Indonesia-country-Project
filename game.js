@@ -98,6 +98,17 @@ let inventory = {
 };
 let budget = 1000;
 
+let transitionActive = false;
+let transitionTimer = 0;
+let pendingTransition = null;
+
+function triggerTransition(nextMap, nextX, nextY) {
+    if (transitionActive) return;
+    transitionActive = true;
+    transitionTimer = 120; // 2 seconds at 60fps
+    pendingTransition = { nextMap, nextX, nextY };
+}
+
 // Drone Minigame State
 let isDroneActive = false;
 let droneX = 400;
@@ -105,6 +116,10 @@ let droneY = 400;
 let droneHeat = 0;
 let droneDead = false;
 let photoMode = false;
+let dodgeMode = false;
+let dodgeTimer = 0;
+let droneProjectiles = [];
+let droneExplosions = [];
 let currentPhotoTarget = null;
 let currentPhotoInput = "";
 let photoSuccessCount = 0;
@@ -212,6 +227,12 @@ function updateObjective() {
     } else if (currentMap === 'borobudur') {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Explore Borobudur</span>';
         instructionEl.innerText = "Explore the majestic Borobudur Temple.";
+    } else if (currentMap === 'aircraft') {
+        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Get to your seat</span>';
+        instructionEl.innerText = "Get to your seat. The flight to Indonesia will begin shortly.";
+    } else if (currentMap === 'airport') {
+        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Enter the Gate</span>';
+        instructionEl.innerText = "Enter the gate doors to start your journey!";
     } else if (inventory.climbers_gear) {
         objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Equipment Acquired</span>';
         instructionEl.innerText = "Move to the rock face and press SPACE to climb!";
@@ -422,12 +443,7 @@ function checkPortalTransition() {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance < 100) {
-        currentMap = 'marketplace';
-        playerX = maps.marketplace.spawn.x;
-        playerY = maps.marketplace.spawn.y;
-        document.getElementById('map-name').textContent = maps.marketplace.name;
-        document.getElementById('budget-container').style.display = 'block';
-        updateObjective();
+        triggerTransition('marketplace', maps.marketplace.spawn.x, maps.marketplace.spawn.y);
     }
 }
 
@@ -439,14 +455,7 @@ function checkFinalExit() {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance < 100) {
-        currentMap = 'kawah';
-        playerX = maps.kawah.spawn.x;
-        playerY = maps.kawah.spawn.y;
-        document.getElementById('map-name').textContent = maps.kawah.name;
-        document.getElementById('budget-container').style.display = 'none';
-        isDroneActive = true;
-        resetDrone();
-        updateObjective();
+        triggerTransition('kawah', maps.kawah.spawn.x, maps.kawah.spawn.y);
     }
 }
 
@@ -466,10 +475,23 @@ function handleDroneInput(key) {
                 }
             }
         } else if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
-            // Incorrect arrow: reset current photo
             currentPhotoInput = "";
             updateArrowDisplay();
         }
+    } else if (key === ' ' && !dodgeMode) {
+        // If near a target, start dodge phase
+        LAVA_TARGETS.forEach(target => {
+            if (target.completed) return;
+            const dx = droneX - target.x;
+            const dy = droneY - target.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 60) {
+                dodgeMode = true;
+                dodgeTimer = 300; // 5 seconds
+                currentPhotoTarget = target;
+                droneProjectiles = [];
+                droneExplosions = [];
+            }
+        });
     }
 }
 
@@ -479,6 +501,9 @@ function resetDrone() {
     droneHeat = 0;
     droneDead = false;
     photoMode = false;
+    dodgeMode = false;
+    droneProjectiles = [];
+    droneExplosions = [];
     currentPhotoInput = "";
     document.getElementById('drone-ui').style.display = 'block';
     document.getElementById('photo-prompt').style.display = 'none';
@@ -583,6 +608,32 @@ function closeDialogue() {
 }
 
 function update() {
+    if (transitionActive) {
+        transitionTimer--;
+        if (transitionTimer === 60) { // Halfway: screen is black, change map
+            currentMap = pendingTransition.nextMap;
+            playerX = pendingTransition.nextX;
+            playerY = pendingTransition.nextY;
+            document.getElementById('map-name').textContent = maps[currentMap].name;
+            updateObjective();
+
+            // Map-specific setups
+            if (currentMap === 'marketplace') {
+                document.getElementById('budget-container').style.display = 'block';
+            } else if (currentMap === 'kawah') {
+                document.getElementById('budget-container').style.display = 'none';
+                isDroneActive = true;
+                resetDrone();
+                updateObjective();
+            }
+        }
+        if (transitionTimer <= 0) {
+            transitionActive = false;
+            pendingTransition = null;
+        }
+        return;
+    }
+
     if (isDialogueOpen || isShopOpen) return;
 
     if (isClimbing) {
@@ -632,12 +683,7 @@ function update() {
 
         if (splashTimer <= 0) {
             splashActive = false;
-            // Immediate transition to Borobudur without dialogue for classroom presentation
-            currentMap = 'borobudur';
-            playerX = maps.borobudur.spawn.x;
-            playerY = maps.borobudur.spawn.y;
-            document.getElementById('map-name').textContent = maps.borobudur.name;
-            updateObjective();
+            triggerTransition('borobudur', maps.borobudur.spawn.x, maps.borobudur.spawn.y);
         }
         return;
     }
@@ -645,10 +691,10 @@ function update() {
     let moveX = 0;
     let moveY = 0;
 
-    if (keys['w'] || keys['arrowup']) moveY -= SPEED;
-    if (keys['s'] || keys['arrowdown']) moveY += SPEED;
-    if (keys['a'] || keys['arrowleft']) moveX -= SPEED;
-    if (keys['d'] || keys['arrowright']) moveX += SPEED;
+    if (keys['w']) moveY -= SPEED;
+    if (keys['s']) moveY += SPEED;
+    if (keys['a']) moveX -= SPEED;
+    if (keys['d']) moveX += SPEED;
 
     const activeMap = maps[currentMap];
     const mapSize = activeMap.size || MAP_SIZE;
@@ -687,19 +733,13 @@ function update() {
         const exit = maps.aircraft.exitRect;
         if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
             playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
-            currentMap = 'airport';
-            playerX = maps.airport.spawn.x;
-            playerY = maps.airport.spawn.y;
-            document.getElementById('map-name').textContent = maps.airport.name;
+            triggerTransition('airport', maps.airport.spawn.x, maps.airport.spawn.y);
         }
     } else if (currentMap === 'airport') {
         const exit = maps.airport.exitRect;
         if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
             playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
-            currentMap = 'destination';
-            playerX = maps.destination.spawn.x;
-            playerY = maps.destination.spawn.y;
-            document.getElementById('map-name').textContent = maps.destination.name;
+            triggerTransition('destination', maps.destination.spawn.x, maps.destination.spawn.y);
         }
     }
 }
@@ -707,6 +747,16 @@ function update() {
 function draw() {
     ctx.fillStyle = '#0a0a0c';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (transitionActive) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '32px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Three Days Later...', 300, 300);
+        return;
+    }
 
     if (isClimbing) {
         document.getElementById('interact-hint').style.display = 'none';
@@ -845,7 +895,7 @@ function draw() {
                 ctx.fillStyle = '#fff';
                 ctx.font = '32px "Courier New", monospace';
                 ctx.textAlign = 'center';
-                ctx.fillText('The Next Day...', 300, 300);
+                ctx.fillText('Three Days Later...', 300, 300);
             }
         }
     }
@@ -938,10 +988,10 @@ function updateDrone() {
     let moveY = 0;
     const droneSpeed = 4;
 
-    if (keys['w'] || keys['arrowup']) moveY -= droneSpeed;
-    if (keys['s'] || keys['arrowdown']) moveY += droneSpeed;
-    if (keys['a'] || keys['arrowleft']) moveX -= droneSpeed;
-    if (keys['d'] || keys['arrowright']) moveX += droneSpeed;
+    if (keys['w']) moveY -= droneSpeed;
+    if (keys['s']) moveY += droneSpeed;
+    if (keys['a']) moveX -= droneSpeed;
+    if (keys['d']) moveX += droneSpeed;
 
     if (moveX !== 0 || moveY !== 0) {
         droneHeat += 0.5;
@@ -958,21 +1008,80 @@ function updateDrone() {
         showDialogue("The drone melted! Retry? (Press Space or Y)");
     }
 
-    // Check for lava targets
+    if (dodgeMode) {
+        dodgeTimer--;
+
+        // Spawn flurry of acidic blue projectiles
+        if (dodgeTimer % 5 === 0) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 4;
+            droneProjectiles.push({
+                x: currentPhotoTarget.x,
+                y: currentPhotoTarget.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 5 + Math.random() * 10
+            });
+        }
+
+        // Random explosions
+        if (dodgeTimer % 40 === 0) {
+            droneExplosions.push({
+                x: droneX + (Math.random() - 0.5) * 200,
+                y: droneY + (Math.random() - 0.5) * 200,
+                radius: 10,
+                maxRadius: 40 + Math.random() * 40,
+                life: 60
+            });
+        }
+
+        // Update Projectiles
+        droneProjectiles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // Collision with drone
+            const dx = droneX - p.x;
+            const dy = droneY - p.y;
+            if (Math.sqrt(dx * dx + dy * dy) < p.size + 5) {
+                droneDead = true;
+                showDialogue("Acidic Explosion Destroyed the Drone! Retry? (Press Space or Y)");
+            }
+        });
+        droneProjectiles = droneProjectiles.filter(p => p.x > 0 && p.x < 800 && p.y > 0 && p.y < 800);
+
+        // Update Explosions
+        droneExplosions.forEach(exp => {
+            exp.radius += 2;
+            exp.life--;
+
+            // Explosion collision
+            const dx = droneX - exp.x;
+            const dy = droneY - exp.y;
+            if (Math.sqrt(dx * dx + dy * dy) < exp.radius && exp.life > 30) {
+                droneDead = true;
+                showDialogue("The Nuclear Blue Fire Consumed You! Retry? (Press Space or Y)");
+            }
+        });
+        droneExplosions = droneExplosions.filter(exp => exp.life > 0);
+
+        if (dodgeTimer <= 0) {
+            dodgeMode = false;
+            photoMode = true;
+            currentPhotoInput = "";
+            document.getElementById('photo-prompt').style.display = 'block';
+            updateArrowDisplay();
+        }
+    }
+
+    // Check for lava targets proximity
     let nearTarget = false;
     LAVA_TARGETS.forEach(target => {
         if (target.completed) return;
         const dx = droneX - target.x;
         const dy = droneY - target.y;
-        if (Math.sqrt(dx * dx + dy * dy) < 40) {
+        if (Math.sqrt(dx * dx + dy * dy) < 60) {
             nearTarget = true;
-            if (!photoMode) {
-                photoMode = true;
-                currentPhotoTarget = target;
-                currentPhotoInput = "";
-                document.getElementById('photo-prompt').style.display = 'block';
-                updateArrowDisplay();
-            }
         }
     });
 
@@ -1013,7 +1122,46 @@ function drawDroneMinigame() {
         ctx.shadowColor = '#f44336';
         ctx.stroke();
         ctx.shadowBlur = 0;
+
+        // Draw Sequence symbols above target
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        const symbols = { 'arrowup': '↑', 'arrowdown': '↓', 'arrowleft': '←', 'arrowright': '→' };
+        const seqText = target.sequence.map(s => symbols[s]).join(' ');
+        ctx.fillText(seqText, tx, ty - 30);
     });
+
+    // Draw Projectiles
+    droneProjectiles.forEach(p => {
+        ctx.fillStyle = '#00d2ff';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00d2ff';
+        ctx.beginPath();
+        ctx.arc(p.x * 600 / 800, p.y * 600 / 800, p.size * 600 / 800, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    });
+
+    // Draw Explosions
+    droneExplosions.forEach(exp => {
+        const alpha = exp.life / 60;
+        ctx.fillStyle = `rgba(0, 210, 255, ${alpha * 0.5})`;
+        ctx.strokeStyle = `rgba(130, 255, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(exp.x * 600 / 800, exp.y * 600 / 800, exp.radius * 600 / 800, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    });
+
+    if (dodgeMode) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('EVADE THE NUCLEAR BLUE LAVA!', 300, 100);
+        ctx.font = '16px Arial';
+        ctx.fillText(`CAPTURING SCAN... ${Math.ceil(dodgeTimer / 60)}s`, 300, 130);
+    }
 
     // Draw Drone (Camera viewport 600, map is 800)
     const dx = droneX * 600 / 800;
