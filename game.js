@@ -170,7 +170,14 @@ window.selectSouvenir = function (itemId) {
 function updateObjective() {
     const objectiveEl = document.getElementById('objective-display');
     const instructionEl = document.getElementById('instructions');
-    if (inventory.climbers_gear) {
+
+    if (currentMap === 'marketplace') {
+        objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Ubud Art Market</span>';
+        instructionEl.innerText = "Buy yourselves something nice!";
+    } else if (currentMap === 'borobudur') {
+        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Explore Borobudur</span>';
+        instructionEl.innerText = "Explore the majestic Borobudur Temple.";
+    } else if (inventory.climbers_gear) {
         objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Equipment Acquired</span>';
         instructionEl.innerText = "Move to the rock face and press SPACE to climb!";
     } else {
@@ -308,7 +315,7 @@ const maps = {
         img: marketplaceImg,
         name: 'UBUD ART MARKET',
         size: 1000,
-        spawn: { x: 500, y: 150 },
+        spawn: { x: 150, y: 150 },
         collisions: [
             // Outer boundaries and roads approximate from image
             { x: 260, y: 280, w: 100, h: 430 }, // Large red buildings left
@@ -317,6 +324,7 @@ const maps = {
             { x: 280, y: 50, w: 340, h: 210 }, // Top middle dark area
             { x: 220, y: 280, w: 180, h: 190 }  // Top left small buildings
         ],
+        exitRect: { x: 0, y: 110, w: 50, h: 100 }, // West end of road
         interactables: [
             {
                 x: 310, y: 530, w: 140, h: 380, // Peach buildings
@@ -345,6 +353,8 @@ window.addEventListener('keydown', e => {
         }
     } else if (key === 'f' && currentMap === 'borobudur' && !isDialogueOpen && !isShopOpen) {
         checkPortalTransition();
+    } else if (key === 'd' && currentMap === 'marketplace' && !isDialogueOpen && !isShopOpen) {
+        checkFinalExit();
     } else if (key === 'f3') {
         debugMode = !debugMode;
         console.log('Debug mode: ' + debugMode);
@@ -365,6 +375,19 @@ function checkPortalTransition() {
         playerY = maps.marketplace.spawn.y;
         document.getElementById('map-name').textContent = maps.marketplace.name;
         document.getElementById('budget-container').style.display = 'block';
+        updateObjective();
+    }
+}
+
+function checkFinalExit() {
+    if (currentMap !== 'marketplace') return;
+    const portal = maps.marketplace.exitRect;
+    const dx = (playerX + PLAYER_SIZE / 2) - (portal.x + portal.w / 2);
+    const dy = (playerY + PLAYER_SIZE / 2) - (portal.y + portal.h / 2);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < 100) {
+        showDialogue("Thank you for visiting Indonesia! Safe travels home.");
     }
 }
 
@@ -502,6 +525,7 @@ function update() {
             playerX = maps.borobudur.spawn.x;
             playerY = maps.borobudur.spawn.y;
             document.getElementById('map-name').textContent = maps.borobudur.name;
+            updateObjective();
         }
         return;
     }
@@ -643,6 +667,25 @@ function draw() {
             if (dist < 100) {
                 hint.style.display = 'flex';
                 hint.innerText = 'F';
+                hint.style.width = '30px';
+                hint.style.borderRadius = '50%';
+                hint.style.position = 'absolute';
+                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - 15) + 'px';
+                hint.style.top = (camY + playerY - 40) + 'px';
+                showingHint = true;
+            }
+        }
+
+        // Specific portal hint for Marketplace
+        if (currentMap === 'marketplace') {
+            const portal = maps.marketplace.exitRect;
+            const dx = (playerX + PLAYER_SIZE / 2) - (portal.x + portal.w / 2);
+            const dy = (playerY + PLAYER_SIZE / 2) - (portal.y + portal.h / 2);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 100) {
+                hint.style.display = 'flex';
+                hint.innerText = 'D';
                 hint.style.width = '30px';
                 hint.style.borderRadius = '50%';
                 hint.style.position = 'absolute';
