@@ -191,15 +191,24 @@ window.updateSouvenirShopUI = function () {
 window.selectSouvenir = function (itemId) {
     inventory[itemId] = true;
     updateSouvenirShopUI();
+    updateObjective();
 }
 
 function updateObjective() {
     const objectiveEl = document.getElementById('objective-display');
     const instructionEl = document.getElementById('instructions');
 
-    if (currentMap === 'marketplace') {
-        objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Ubud Art Market</span>';
-        instructionEl.innerText = "Buy yourselves something nice!";
+    if (currentMap === 'kawah') {
+        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Research Blue Lava</span>';
+        instructionEl.innerText = "Pilot the drone over the blue lava vents and take photos!";
+    } else if (currentMap === 'marketplace') {
+        if (inventory.sun_hat || inventory.melon) {
+            objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Souvenir Acquired</span>';
+            instructionEl.innerText = "You have what you need. Find the west exit to head to Kawah Ijen!";
+        } else {
+            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Visit Ubud Art Market</span>';
+            instructionEl.innerText = "Find the shop and buy a souvenir!";
+        }
     } else if (currentMap === 'borobudur') {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Explore Borobudur</span>';
         instructionEl.innerText = "Explore the majestic Borobudur Temple.";
@@ -343,22 +352,9 @@ const maps = {
         img: marketplaceImg,
         name: 'UBUD ART MARKET',
         size: 1000,
-        checkCollision: (x, y) => {
-            // Check pixel color approximately or use bounds. 
-            // In Ubud, gray is path (walkable), green is grass (collision)
-            // Center top spawn is ~150,150
-            if (x < 0 || x > 968 || y < 0 || y > 968) return true;
-
-            // Simplified road boundaries for Ubud based on the image
-            const isRoad = (y < 280) || // Top road
-                (x > 360 && x < 600) || // Vertical main road
-                (y > 200 && y < 300) || // North-south link
-                (x < 260 && y > 280) || // Left road
-                (x > 860); // Right road
-
-            return !isRoad;
-        },
-        exitRect: { x: 0, y: 110, w: 50, h: 100 }, // West end of road
+        spawn: { x: 450, y: 150 },
+        checkCollision: (x, y) => false,
+        exitRect: { x: 950, y: 110, w: 50, h: 100 }, // East end of road
         interactables: [
             {
                 x: 310, y: 530, w: 140, h: 380, // Peach buildings
@@ -405,10 +401,12 @@ window.addEventListener('keydown', e => {
         } else {
             checkClimbStart();
         }
-    } else if (key === 'f' && currentMap === 'borobudur' && !isDialogueOpen && !isShopOpen) {
-        checkPortalTransition();
-    } else if (key === 'd' && currentMap === 'marketplace' && !isDialogueOpen && !isShopOpen) {
-        checkFinalExit();
+    } else if (key === 'f' && !isDialogueOpen && !isShopOpen) {
+        if (currentMap === 'borobudur') {
+            checkPortalTransition();
+        } else if (currentMap === 'marketplace') {
+            checkFinalExit();
+        }
     } else if (key === 'f3') {
         debugMode = !debugMode;
         console.log('Debug mode: ' + debugMode);
@@ -804,7 +802,7 @@ function draw() {
 
             if (dist < 100) {
                 hint.style.display = 'flex';
-                hint.innerText = 'D';
+                hint.innerText = 'F';
                 hint.style.width = '30px';
                 hint.style.borderRadius = '50%';
                 hint.style.position = 'absolute';
