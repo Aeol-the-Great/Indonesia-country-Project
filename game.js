@@ -141,14 +141,14 @@ const destinationImg = new Image();
 const ropeImg = new Image();
 const climbImg = new Image();
 const splashImg = new Image();
-const hotelImg = new Image();
+const borobudurImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
 destinationImg.src = 'pixil-frame-1.png';
 ropeImg.src = 'Rope.png';
 climbImg.src = 'pixil-frame-0 (1) (2).png';
 splashImg.src = 'pixil-frame-0 (11).png';
-hotelImg.src = 'pixil-frame-0 (12).png';
+borobudurImg.src = 'pixil-frame-0 (12).png';
 
 const VIEWPORT_SIZE = 600;
 const MAP_SIZE = 800;
@@ -217,18 +217,36 @@ const maps = {
             }
         ]
     },
-    hotel: {
-        img: hotelImg,
-        name: 'SKY LODGE - THE HANGING HOTEL',
-        spawn: { x: 300, y: 400 },
-        collisions: [], // To be added if needed, or keeping it open
-        interactables: [
-            {
-                x: 0, y: 0, w: 600, h: 600,
-                text: "The view from here is breathtaking. You feel like you're floating above the world.",
-                type: 'dialogue'
-            }
-        ]
+    borobudur: {
+        img: borobudurImg,
+        name: 'BOROBUDUR TEMPLE',
+        size: 1600,
+        spawn: { x: 800, y: 1500 },
+        checkCollision: (x, y) => {
+            const centerX = 800;
+            const centerY = 800;
+            const playerCenterX = x + 16;
+            const playerCenterY = y + 16;
+            const dx = playerCenterX - centerX;
+            const dy = playerCenterY - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // 1. Grass (walkable if distance > 720)
+            if (dist > 720) return false;
+
+            // 2. Inner circles (walkable if distance < 360)
+            if (dist < 360) return false;
+
+            // 3. Pathways (walkable if within 90px of center lines)
+            // Vertical path
+            if (Math.abs(dx) < 90) return false;
+            // Horizontal path
+            if (Math.abs(dy) < 90) return false;
+
+            // 4. Otherwise, it's a collision (the temple steps/terraces)
+            return true;
+        },
+        interactables: []
     }
 };
 
@@ -337,13 +355,7 @@ function closeDialogue() {
     isDialogueOpen = false;
     dialogueBox.style.display = 'none';
 
-    // If we just finished the climbing cutscene, transition to the hotel
-    if (currentMap === 'destination' && !isClimbing && !splashActive && playerY < 200) {
-        currentMap = 'hotel';
-        playerX = maps.hotel.spawn.x;
-        playerY = maps.hotel.spawn.y;
-        document.getElementById('map-name').textContent = maps.hotel.name;
-    }
+    // Space reserved for future dialogue closing logic
 }
 
 function update() {
@@ -391,7 +403,11 @@ function update() {
 
         if (splashTimer <= 0) {
             splashActive = false;
-            showDialogue("You've reached the top of the cliff! The Hanging Hotel awaits.");
+            // Immediate transition to Borobudur without dialogue for classroom presentation
+            currentMap = 'borobudur';
+            playerX = maps.borobudur.spawn.x;
+            playerY = maps.borobudur.spawn.y;
+            document.getElementById('map-name').textContent = maps.borobudur.name;
         }
         return;
     }
@@ -410,19 +426,31 @@ function update() {
     // Check X movement
     let nextX = Math.max(0, Math.min(playerX + moveX, mapSize - PLAYER_SIZE));
     let collisionX = false;
-    activeMap.collisions.forEach(rect => {
-        if (nextX < rect.x + rect.w && nextX + PLAYER_SIZE > rect.x &&
-            playerY < rect.y + rect.h && playerY + PLAYER_SIZE > rect.y) collisionX = true;
-    });
+
+    if (activeMap.checkCollision) {
+        collisionX = activeMap.checkCollision(nextX, playerY);
+    } else if (activeMap.collisions) {
+        activeMap.collisions.forEach(rect => {
+            if (nextX < rect.x + rect.w && nextX + PLAYER_SIZE > rect.x &&
+                playerY < rect.y + rect.h && playerY + PLAYER_SIZE > rect.y) collisionX = true;
+        });
+    }
+
     if (!collisionX) playerX = nextX;
 
     // Check Y movement
     let nextY = Math.max(0, Math.min(playerY + moveY, mapSize - PLAYER_SIZE));
     let collisionY = false;
-    activeMap.collisions.forEach(rect => {
-        if (playerX < rect.x + rect.w && playerX + PLAYER_SIZE > rect.x &&
-            nextY < rect.y + rect.h && nextY + PLAYER_SIZE > rect.y) collisionY = true;
-    });
+
+    if (activeMap.checkCollision) {
+        collisionY = activeMap.checkCollision(playerX, nextY);
+    } else if (activeMap.collisions) {
+        activeMap.collisions.forEach(rect => {
+            if (playerX < rect.x + rect.w && playerX + PLAYER_SIZE > rect.x &&
+                nextY < rect.y + rect.h && nextY + PLAYER_SIZE > rect.y) collisionY = true;
+        });
+    }
+
     if (!collisionY) playerY = nextY;
 
     if (currentMap === 'aircraft') {
@@ -615,7 +643,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, hotelImg];
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
