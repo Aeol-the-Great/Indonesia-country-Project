@@ -13,6 +13,7 @@ ui.id = 'ui-overlay';
 ui.innerHTML = `
     <div id="map-name" style="background: rgba(20,20,30,0.8); color: #00d2ff; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 5px;">AIRCRAFT CABIN</div>
     <div id="objective-display" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 5px; border-left: 4px solid #00d2ff;">○ Objective: Purchase Climbers Gear</div>
+    <div id="budget-container" style="display: none; background: rgba(20,20,30,0.8); color: #4CAF50; padding: 8px 12px; border-radius: 8px; font-size: 16px; font-weight: bold; margin-bottom: 5px; border-left: 4px solid #4CAF50;">Budget: $<span id="budget-value">1000</span></div>
     <div id="instructions" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0.8; margin-bottom: 5px;">Move with WASD or Arrows. Find the exit!</div>
     <div id="interact-hint" style="display: none; background: rgba(255,255,255,0.9); color: #000; width: 30px; height: 30px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; font-family: Arial; border: 2px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.5);">O</div>
 `;
@@ -83,8 +84,11 @@ let splashPhase = 'image'; // 'image', 'black', 'text'
 
 let debugMode = false;
 let inventory = {
-    climbers_gear: false
+    climbers_gear: false,
+    sun_hat: false,
+    melon: false
 };
+let budget = 1000;
 
 function openShop() {
     isShopOpen = true;
@@ -122,6 +126,47 @@ window.closeShop = function () {
     shopUI.style.display = 'none';
 };
 
+window.openSouvenirShop = function () {
+    isShopOpen = true;
+    updateSouvenirShopUI();
+    shopUI.style.display = 'block';
+}
+
+window.updateSouvenirShopUI = function () {
+    shopUI.innerHTML = `
+        <h2 style="color: #ffca28; margin-bottom: 20px; font-size: 24px;">UBUD ART MARKET</h2>
+        <p style="margin-bottom: 20px;">Choose ONE souvenir to take home!</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid ${inventory.sun_hat ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
+                <div style="width: 50px; height: 50px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                    <img src="pixil-frame-0 (22).png" style="width: 40px; height: 40px; image-rendering: pixelated;">
+                </div>
+                <div style="font-weight: bold; margin-bottom: 5px;">Straw Hat</div>
+                <div style="font-size: 12px; color: #aaa; margin-bottom: 15px;">A stylish hat for the tropical sun.</div>
+                ${(inventory.sun_hat || inventory.melon) ?
+            (inventory.sun_hat ? '<span style="color: #4CAF50;">SELECTED</span>' : '<span style="color: #666;">UNAVAILABLE</span>') :
+            '<button onclick="selectSouvenir(\'sun_hat\')" style="background: #ffca28; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">SELECT</button>'}
+            </div>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid ${inventory.melon ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
+                <div style="width: 50px; height: 50px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                    <img src="pixilart-drawing (7).png" style="width: 40px; height: 40px; image-rendering: pixelated;">
+                </div>
+                <div style="font-weight: bold; margin-bottom: 5px;">Melon</div>
+                <div style="font-size: 12px; color: #aaa; margin-bottom: 15px;">+1000% Ice Damage (Useless here).</div>
+                ${(inventory.sun_hat || inventory.melon) ?
+            (inventory.melon ? '<span style="color: #4CAF50;">SELECTED</span>' : '<span style="color: #666;">UNAVAILABLE</span>') :
+            '<button onclick="selectSouvenir(\'melon\')" style="background: #ffca28; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">SELECT</button>'}
+            </div>
+        </div>
+        <button onclick="closeShop()" style="background: none; border: 2px solid #fff; color: #fff; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">CLOSE</button>
+    `;
+}
+
+window.selectSouvenir = function (itemId) {
+    inventory[itemId] = true;
+    updateSouvenirShopUI();
+}
+
 function updateObjective() {
     const objectiveEl = document.getElementById('objective-display');
     const instructionEl = document.getElementById('instructions');
@@ -142,6 +187,9 @@ const ropeImg = new Image();
 const climbImg = new Image();
 const splashImg = new Image();
 const borobudurImg = new Image();
+const marketplaceImg = new Image();
+const strawHatImg = new Image();
+const melonImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
 destinationImg.src = 'pixil-frame-1.png';
@@ -149,8 +197,12 @@ ropeImg.src = 'Rope.png';
 climbImg.src = 'pixil-frame-0 (1) (2).png';
 splashImg.src = 'pixil-frame-0 (11).png';
 borobudurImg.src = 'pixil-frame-0 (12).png';
+marketplaceImg.src = 'pixilart-drawing (6).png';
+strawHatImg.src = 'pixil-frame-0 (22).png';
+melonImg.src = 'pixilart-drawing (7).png';
 
-const VIEWPORT_SIZE = 600;
+const VIEWPORT_WIDTH = 600;
+const VIEWPORT_HEIGHT = 600;
 const MAP_SIZE = 800;
 const PLAYER_SIZE = 32;
 const SPEED = 5;
@@ -186,7 +238,7 @@ const maps = {
         img: destinationImg,
         name: 'GUNUNG PARANG VIA FERRATA',
         size: 1600,
-        spawn: { x: 400, y: 400 },
+        spawn: { x: 100, y: 1380 },
         collisions: [
             // Four squares (Equipment boxes) - individually defined
             { x: 128, y: 160, w: 144, h: 112 }, // Box 1
@@ -246,7 +298,28 @@ const maps = {
             // 4. Otherwise, it's a collision (the temple steps/terraces)
             return true;
         },
+        exitRect: { x: 1550, y: 710, w: 50, h: 180 }, // East path end
         interactables: []
+    },
+    marketplace: {
+        img: marketplaceImg,
+        name: 'UBUD ART MARKET',
+        size: 1000,
+        spawn: { x: 500, y: 150 },
+        collisions: [
+            // Outer boundaries and roads approximate from image
+            { x: 260, y: 280, w: 100, h: 430 }, // Large red buildings left
+            { x: 600, y: 620, w: 230, h: 320 }, // Buildings bottom right
+            { x: 640, y: 410, w: 220, h: 210 }, // Blue buildings right
+            { x: 280, y: 50, w: 340, h: 210 }, // Top middle dark area
+            { x: 220, y: 280, w: 180, h: 190 }  // Top left small buildings
+        ],
+        interactables: [
+            {
+                x: 310, y: 530, w: 140, h: 380, // Peach buildings
+                type: 'souvenir_shop'
+            }
+        ]
     }
 };
 
@@ -471,6 +544,16 @@ function update() {
             playerY = maps.destination.spawn.y;
             document.getElementById('map-name').textContent = maps.destination.name;
         }
+    } else if (currentMap === 'borobudur') {
+        const exit = maps.borobudur.exitRect;
+        if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
+            playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
+            currentMap = 'marketplace';
+            playerX = maps.marketplace.spawn.x;
+            playerY = maps.marketplace.spawn.y;
+            document.getElementById('map-name').textContent = maps.marketplace.name;
+            document.getElementById('budget-container').style.display = 'block';
+        }
     }
 }
 
@@ -479,6 +562,7 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (isClimbing) {
+        document.getElementById('interact-hint').style.display = 'none';
         drawClimbingMinigame();
         return;
     }
@@ -486,10 +570,10 @@ function draw() {
     const activeMap = maps[currentMap];
     const mapSize = activeMap.size || MAP_SIZE;
 
-    let camX = 300 - playerX - (PLAYER_SIZE / 2);
-    let camY = 300 - playerY - (PLAYER_SIZE / 2);
-    camX = Math.min(0, Math.max(camX, VIEWPORT_SIZE - mapSize));
-    camY = Math.min(0, Math.max(camY, VIEWPORT_SIZE - mapSize));
+    let camX = (VIEWPORT_WIDTH / 2) - playerX - (PLAYER_SIZE / 2);
+    let camY = (VIEWPORT_HEIGHT / 2) - playerY - (PLAYER_SIZE / 2);
+    camX = Math.min(0, Math.max(camX, VIEWPORT_WIDTH - mapSize));
+    camY = Math.min(0, Math.max(camY, VIEWPORT_HEIGHT - mapSize));
 
     const activeImg = activeMap.img;
     ctx.drawImage(activeImg, camX, camY, mapSize, mapSize);
@@ -505,13 +589,14 @@ function draw() {
     // Interaction Hint (O or SPACE icon)
     const hint = document.getElementById('interact-hint');
     let showingHint = false;
-    if (currentMap === 'destination' && !isDialogueOpen && !isShopOpen && !isClimbing) {
-        maps.destination.interactables.forEach(obj => {
+    if ((currentMap === 'destination' || currentMap === 'marketplace') && !isDialogueOpen && !isShopOpen && !isClimbing && !splashActive) {
+        const interactables = maps[currentMap].interactables;
+        interactables.forEach(obj => {
             const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
             const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            const triggerDist = obj.type === 'climb_trigger' ? 200 : 120;
+            const triggerDist = obj.type === 'climb_trigger' ? 200 : (obj.type === 'souvenir_shop' ? 150 : 120);
 
             if (distance < triggerDist) {
                 if (obj.type === 'climb_trigger' && !inventory.climbers_gear) return;
@@ -536,6 +621,11 @@ function draw() {
         ctx.lineWidth = 2;
         ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
         ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+
+        // Draw Souvenir Hat
+        if (inventory.sun_hat) {
+            ctx.drawImage(strawHatImg, camX + playerX - 10, camY + playerY - 15, PLAYER_SIZE + 20, 25);
+        }
     }
 
     // Draw Cutscene Overlay
@@ -545,7 +635,7 @@ function draw() {
         if (splashPhase === 'image') {
             ctx.save();
             ctx.globalAlpha = splashAlpha;
-            ctx.drawImage(splashImg, 0, 0, 600, 600);
+            ctx.drawImage(splashImg, -150, 0, 900, 600);
             ctx.restore();
         } else if (splashPhase === 'black' || splashPhase === 'text') {
             ctx.globalAlpha = splashAlpha;
@@ -563,7 +653,7 @@ function draw() {
 
 function drawClimbingMinigame() {
     // Draw the climbing map
-    ctx.drawImage(climbImg, 0, 0, 600, 600);
+    ctx.drawImage(climbImg, -150, 0, 900, 600);
 
     // Draw Player on rungs
     const pY = climbProgress >= RUNG_COUNT ? RUNG_Y_POSITIONS[RUNG_COUNT - 1] : RUNG_Y_POSITIONS[climbProgress];
@@ -574,8 +664,8 @@ function drawClimbingMinigame() {
         ctx.lineWidth = 4;
         ctx.setLineDash([5, 5]); // Optional: make it look like a cable
         ctx.beginPath();
-        ctx.moveTo(300, 0); // Start at top
-        ctx.lineTo(300, pY + 15); // End at player
+        ctx.moveTo(300, 0); // Center of 600
+        ctx.lineTo(300, pY + 15);
         ctx.stroke();
         ctx.setLineDash([]); // Reset
     }
@@ -643,7 +733,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg];
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
