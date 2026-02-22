@@ -14,6 +14,14 @@ ui.innerHTML = `
     <div id="map-name" style="background: rgba(20,20,30,0.8); color: #00d2ff; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 5px;">AIRCRAFT CABIN</div>
     <div id="objective-display" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 5px; border-left: 4px solid #00d2ff;">○ Objective: Purchase Climbers Gear</div>
     <div id="budget-container" style="display: none; background: rgba(20,20,30,0.8); color: #4CAF50; padding: 8px 12px; border-radius: 8px; font-size: 16px; font-weight: bold; margin-bottom: 5px; border-left: 4px solid #4CAF50;">Budget: $<span id="budget-value">1000</span></div>
+    <div id="drone-ui" style="display: none; position: absolute; top: 100px; right: 20px; width: 40px; height: 200px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 5px;">
+        <div id="heat-fill" style="position: absolute; bottom: 0; width: 100%; height: 0%; background: linear-gradient(to top, #ffeb3b, #f44336); border-radius: 3px; transition: height 0.1s;"></div>
+        <div style="position: absolute; top: -25px; left: 0; width: 100%; text-align: center; color: #fff; font-weight: bold; font-size: 12px;">HEAT</div>
+    </div>
+    <div id="photo-prompt" style="display: none; position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #00d2ff; text-align: center;">
+        <div style="color: #fff; margin-bottom: 10px; font-weight: bold;">TYPE TO PHOTOGRAPH</div>
+        <div id="arrow-sequence" style="font-size: 24px; letter-spacing: 5px;"></div>
+    </div>
     <div id="instructions" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0.8; margin-bottom: 5px;">Move with WASD or Arrows. Find the exit!</div>
     <div id="interact-hint" style="display: none; background: rgba(255,255,255,0.9); color: #000; width: 30px; height: 30px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; font-family: Arial; border: 2px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.5);">O</div>
 `;
@@ -89,6 +97,24 @@ let inventory = {
     melon: false
 };
 let budget = 1000;
+
+// Drone Minigame State
+let isDroneActive = false;
+let droneX = 400;
+let droneY = 400;
+let droneHeat = 0;
+let droneDead = false;
+let photoMode = false;
+let currentPhotoTarget = null;
+let currentPhotoInput = "";
+let photoSuccessCount = 0;
+
+const LAVA_TARGETS = [
+    { id: 'top', x: 400, y: 200, sequence: ['arrowup', 'arrowup', 'arrowdown', 'arrowleft'], direction: 'UP UP DOWN LEFT', color: 'cyan', completed: false },
+    { id: 'left', x: 200, y: 400, sequence: ['arrowleft', 'arrowup', 'arrowdown', 'arrowright'], direction: 'LEFT UP DOWN RIGHT', color: 'cyan', completed: false },
+    { id: 'right', x: 600, y: 400, sequence: ['arrowright', 'arrowdown', 'arrowright', 'arrowup'], direction: 'RIGHT DOWN RIGHT UP', color: 'cyan', completed: false },
+    { id: 'bottom', x: 400, y: 600, sequence: ['arrowdown', 'arrowright', 'arrowup', 'arrowleft'], direction: 'DOWN RIGHT UP LEFT', color: 'cyan', completed: false }
+];
 
 function openShop() {
     isShopOpen = true;
@@ -197,6 +223,7 @@ const borobudurImg = new Image();
 const marketplaceImg = new Image();
 const strawHatImg = new Image();
 const melonImg = new Image();
+const kawahImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
 destinationImg.src = 'pixil-frame-1.png';
@@ -207,6 +234,7 @@ borobudurImg.src = 'pixil-frame-0 (12).png';
 marketplaceImg.src = 'pixilart-drawing (6).png';
 strawHatImg.src = 'pixil-frame-0 (22).png';
 melonImg.src = 'pixilart-drawing (7).png';
+kawahImg.src = 'pixil-frame-0 (15).png';
 
 const VIEWPORT_WIDTH = 600;
 const VIEWPORT_HEIGHT = 600;
@@ -315,15 +343,21 @@ const maps = {
         img: marketplaceImg,
         name: 'UBUD ART MARKET',
         size: 1000,
-        spawn: { x: 150, y: 150 },
-        collisions: [
-            // Outer boundaries and roads approximate from image
-            { x: 260, y: 280, w: 100, h: 430 }, // Large red buildings left
-            { x: 600, y: 620, w: 230, h: 320 }, // Buildings bottom right
-            { x: 640, y: 410, w: 220, h: 210 }, // Blue buildings right
-            { x: 280, y: 50, w: 340, h: 210 }, // Top middle dark area
-            { x: 220, y: 280, w: 180, h: 190 }  // Top left small buildings
-        ],
+        checkCollision: (x, y) => {
+            // Check pixel color approximately or use bounds. 
+            // In Ubud, gray is path (walkable), green is grass (collision)
+            // Center top spawn is ~150,150
+            if (x < 0 || x > 968 || y < 0 || y > 968) return true;
+
+            // Simplified road boundaries for Ubud based on the image
+            const isRoad = (y < 280) || // Top road
+                (x > 360 && x < 600) || // Vertical main road
+                (y > 200 && y < 300) || // North-south link
+                (x < 260 && y > 280) || // Left road
+                (x > 860); // Right road
+
+            return !isRoad;
+        },
         exitRect: { x: 0, y: 110, w: 50, h: 100 }, // West end of road
         interactables: [
             {
@@ -331,12 +365,32 @@ const maps = {
                 type: 'souvenir_shop'
             }
         ]
+    },
+    kawah: {
+        img: kawahImg,
+        name: 'KAWAH IJEN - BLUE LAVA',
+        size: 800,
+        spawn: { x: 400, y: 750 }, // Wooden platform bottom
+        checkCollision: (x, y) => {
+            // Player only on wooden platform
+            if (y > 720 && x > 350 && x < 450) return false;
+            return true;
+        },
+        interactables: []
     }
 };
 
 window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     keys[key] = true;
+
+    if (isDroneActive && !droneDead) {
+        handleDroneInput(key);
+        return;
+    } else if (droneDead && (key === 'y' || key === ' ')) {
+        resetDrone();
+        return;
+    }
 
     // Interact with O key
     if (key === 'o' && !isDialogueOpen && !isShopOpen && !isClimbing) {
@@ -387,8 +441,61 @@ function checkFinalExit() {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance < 100) {
-        showDialogue("Thank you for visiting Indonesia! Safe travels home.");
+        currentMap = 'kawah';
+        playerX = maps.kawah.spawn.x;
+        playerY = maps.kawah.spawn.y;
+        document.getElementById('map-name').textContent = maps.kawah.name;
+        document.getElementById('budget-container').style.display = 'none';
+        isDroneActive = true;
+        resetDrone();
+        updateObjective();
     }
+}
+
+function handleDroneInput(key) {
+    if (photoMode) {
+        const expected = currentPhotoTarget.sequence[currentPhotoInput.length];
+        if (key === expected) {
+            currentPhotoInput += key;
+            updateArrowDisplay();
+            if (currentPhotoInput === currentPhotoTarget.sequence.join('')) {
+                currentPhotoTarget.completed = true;
+                photoMode = false;
+                photoSuccessCount++;
+                document.getElementById('photo-prompt').style.display = 'none';
+                if (photoSuccessCount >= LAVA_TARGETS.length) {
+                    showDialogue("All blue lava samples captured! The research is a success.");
+                }
+            }
+        } else if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+            // Incorrect arrow: reset current photo
+            currentPhotoInput = "";
+            updateArrowDisplay();
+        }
+    }
+}
+
+function resetDrone() {
+    droneX = 400;
+    droneY = 700;
+    droneHeat = 0;
+    droneDead = false;
+    photoMode = false;
+    currentPhotoInput = "";
+    document.getElementById('drone-ui').style.display = 'block';
+    document.getElementById('photo-prompt').style.display = 'none';
+}
+
+function updateArrowDisplay() {
+    const sequenceEl = document.getElementById('arrow-sequence');
+    const seq = currentPhotoTarget.sequence;
+    let html = "";
+    const symbols = { 'arrowup': '↑', 'arrowdown': '↓', 'arrowleft': '←', 'arrowright': '→' };
+    for (let i = 0; i < seq.length; i++) {
+        const color = i < currentPhotoInput.length ? '#4CAF50' : '#fff';
+        html += `<span style="color: ${color}">${symbols[seq[i]]}</span>`;
+    }
+    sequenceEl.innerHTML = html;
 }
 
 function checkClimbStart() {
@@ -444,9 +551,9 @@ function finishClimb() {
 }
 
 function checkInteraction() {
-    if (currentMap !== 'destination') return;
+    const map = maps[currentMap];
+    if (!map.interactables) return;
 
-    const map = maps.destination;
     map.interactables.forEach(obj => {
         const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
         const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
@@ -455,6 +562,8 @@ function checkInteraction() {
         if (distance < 120) { // Interaction range
             if (obj.type === 'shop') {
                 openShop();
+            } else if (obj.type === 'souvenir_shop') {
+                openSouvenirShop();
             } else {
                 showDialogue(obj.text);
             }
@@ -482,6 +591,11 @@ function update() {
         timingArrowPos += 0.02 * timingArrowDir;
         if (timingArrowPos > 1 || timingArrowPos < 0) timingArrowDir *= -1;
         if (feedbackTimer > 0) feedbackTimer--;
+        return;
+    }
+
+    if (isDroneActive && !droneDead) {
+        updateDrone();
         return;
     }
 
@@ -599,6 +713,11 @@ function draw() {
     if (isClimbing) {
         document.getElementById('interact-hint').style.display = 'none';
         drawClimbingMinigame();
+        return;
+    }
+
+    if (isDroneActive) {
+        drawDroneMinigame();
         return;
     }
 
@@ -816,7 +935,107 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg];
+function updateDrone() {
+    let moveX = 0;
+    let moveY = 0;
+    const droneSpeed = 4;
+
+    if (keys['w'] || keys['arrowup']) moveY -= droneSpeed;
+    if (keys['s'] || keys['arrowdown']) moveY += droneSpeed;
+    if (keys['a'] || keys['arrowleft']) moveX -= droneSpeed;
+    if (keys['d'] || keys['arrowright']) moveX += droneSpeed;
+
+    if (moveX !== 0 || moveY !== 0) {
+        droneHeat += 0.5;
+        droneX = Math.max(20, Math.min(780, droneX + moveX));
+        droneY = Math.max(20, Math.min(780, droneY + moveY));
+    } else {
+        droneHeat = Math.max(0, droneHeat - 0.2);
+    }
+
+    document.getElementById('heat-fill').style.height = droneHeat + '%';
+
+    if (droneHeat >= 100) {
+        droneDead = true;
+        showDialogue("The drone melted! Retry? (Press Space or Y)");
+    }
+
+    // Check for lava targets
+    let nearTarget = false;
+    LAVA_TARGETS.forEach(target => {
+        if (target.completed) return;
+        const dx = droneX - target.x;
+        const dy = droneY - target.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 40) {
+            nearTarget = true;
+            if (!photoMode) {
+                photoMode = true;
+                currentPhotoTarget = target;
+                currentPhotoInput = "";
+                document.getElementById('photo-prompt').style.display = 'block';
+                updateArrowDisplay();
+            }
+        }
+    });
+
+    if (!nearTarget && photoMode) {
+        photoMode = false;
+        document.getElementById('photo-prompt').style.display = 'none';
+    }
+}
+
+function drawDroneMinigame() {
+    // Draw Kawah Ijen
+    ctx.drawImage(kawahImg, 0, 0, 600, 600);
+
+    // Draw Player standing still on platform
+    ctx.fillStyle = '#00d2ff';
+    ctx.strokeStyle = '#fff';
+    ctx.fillRect(285, 540, PLAYER_SIZE, PLAYER_SIZE);
+    ctx.strokeRect(285, 540, PLAYER_SIZE, PLAYER_SIZE);
+    if (inventory.sun_hat) {
+        ctx.drawImage(strawHatImg, 285 - 10, 540 - 15, PLAYER_SIZE + 20, 25);
+    }
+
+    // Draw Lava Target Markers
+    LAVA_TARGETS.forEach(target => {
+        if (target.completed) return;
+        // Adjust for 800->600 scale
+        const tx = target.x * 600 / 800;
+        const ty = target.y * 600 / 800;
+
+        ctx.strokeStyle = '#f44336';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 20, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Pulsing glow
+        ctx.shadowBlur = 10 + Math.sin(Date.now() / 200) * 5;
+        ctx.shadowColor = '#f44336';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    });
+
+    // Draw Drone (Camera viewport 600, map is 800)
+    const dx = droneX * 600 / 800;
+    const dy = droneY * 600 / 800;
+
+    ctx.fillStyle = droneDead ? '#555' : '#eee';
+    ctx.strokeStyle = '#000';
+    ctx.beginPath();
+    ctx.rect(dx - 10, dy - 10, 20, 20);
+    ctx.fill();
+    ctx.stroke();
+    // Propellers
+    const angle = Date.now() / 50;
+    ctx.beginPath();
+    ctx.moveTo(dx - 15 * Math.cos(angle), dy - 15 * Math.sin(angle));
+    ctx.lineTo(dx + 15 * Math.cos(angle), dy + 15 * Math.sin(angle));
+    ctx.stroke();
+}
+
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
