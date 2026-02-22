@@ -286,7 +286,10 @@ const maps = {
             // 1. Grass (walkable if distance > 720)
             if (dist > 720) return false;
 
-            // 2. Inner circles (walkable if distance < 360)
+            // 2. Teleport Area (walkable at far east)
+            if (playerCenterX > 1550) return false;
+
+            // 3. Inner circles (walkable if distance < 360)
             if (dist < 360) return false;
 
             // 3. Pathways (walkable if within 90px of center lines)
@@ -298,7 +301,7 @@ const maps = {
             // 4. Otherwise, it's a collision (the temple steps/terraces)
             return true;
         },
-        exitRect: { x: 1550, y: 710, w: 50, h: 180 }, // East path end
+        exitRect: { x: 1560, y: 750, w: 40, h: 100 }, // East path end
         interactables: []
     },
     marketplace: {
@@ -577,6 +580,15 @@ function draw() {
 
     const activeImg = activeMap.img;
     ctx.drawImage(activeImg, camX, camY, mapSize, mapSize);
+
+    // Draw Exit Marker for Borobudur
+    if (currentMap === 'borobudur') {
+        const exit = maps.borobudur.exitRect;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.beginPath();
+        ctx.ellipse(camX + exit.x + exit.w / 2, camY + exit.y + exit.h / 2, exit.w / 2, exit.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
     // Draw Collision Debug (F3 to toggle)
     if (debugMode) {
