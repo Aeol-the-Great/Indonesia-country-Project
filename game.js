@@ -352,7 +352,7 @@ const maps = {
         img: marketplaceImg,
         name: 'UBUD ART MARKET',
         size: 1000,
-        spawn: { x: 450, y: 150 },
+        spawn: { x: 50, y: 150 },
         checkCollision: (x, y) => false,
         exitRect: { x: 950, y: 110, w: 50, h: 100 }, // East end of road
         interactables: [
