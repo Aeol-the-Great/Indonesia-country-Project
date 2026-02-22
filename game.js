@@ -301,7 +301,7 @@ const maps = {
             // 4. Otherwise, it's a collision (the temple steps/terraces)
             return true;
         },
-        exitRect: { x: 1560, y: 750, w: 40, h: 100 }, // East path end
+        exitRect: { x: 1200, y: 750, w: 40, h: 100 }, // Middle of east path
         interactables: []
     },
     marketplace: {
@@ -343,12 +343,30 @@ window.addEventListener('keydown', e => {
         } else {
             checkClimbStart();
         }
+    } else if (key === 'f' && currentMap === 'borobudur' && !isDialogueOpen && !isShopOpen) {
+        checkPortalTransition();
     } else if (key === 'f3') {
         debugMode = !debugMode;
         console.log('Debug mode: ' + debugMode);
     }
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function checkPortalTransition() {
+    if (currentMap !== 'borobudur') return;
+    const portal = maps.borobudur.exitRect;
+    const dx = (playerX + PLAYER_SIZE / 2) - (portal.x + portal.w / 2);
+    const dy = (playerY + PLAYER_SIZE / 2) - (portal.y + portal.h / 2);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < 100) {
+        currentMap = 'marketplace';
+        playerX = maps.marketplace.spawn.x;
+        playerY = maps.marketplace.spawn.y;
+        document.getElementById('map-name').textContent = maps.marketplace.name;
+        document.getElementById('budget-container').style.display = 'block';
+    }
+}
 
 function checkClimbStart() {
     if (currentMap !== 'destination' || !inventory.climbers_gear) return;
@@ -547,16 +565,6 @@ function update() {
             playerY = maps.destination.spawn.y;
             document.getElementById('map-name').textContent = maps.destination.name;
         }
-    } else if (currentMap === 'borobudur') {
-        const exit = maps.borobudur.exitRect;
-        if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
-            playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
-            currentMap = 'marketplace';
-            playerX = maps.marketplace.spawn.x;
-            playerY = maps.marketplace.spawn.y;
-            document.getElementById('map-name').textContent = maps.marketplace.name;
-            document.getElementById('budget-container').style.display = 'block';
-        }
     }
 }
 
@@ -601,8 +609,9 @@ function draw() {
     // Interaction Hint (O or SPACE icon)
     const hint = document.getElementById('interact-hint');
     let showingHint = false;
-    if ((currentMap === 'destination' || currentMap === 'marketplace') && !isDialogueOpen && !isShopOpen && !isClimbing && !splashActive) {
-        const interactables = maps[currentMap].interactables;
+    if ((currentMap === 'destination' || currentMap === 'marketplace' || currentMap === 'borobudur') && !isDialogueOpen && !isShopOpen && !isClimbing && !splashActive) {
+        // Shared logic for interactables and portal
+        const interactables = maps[currentMap].interactables || [];
         interactables.forEach(obj => {
             const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
             const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
@@ -623,6 +632,25 @@ function draw() {
                 showingHint = true;
             }
         });
+
+        // Specific portal hint for Borobudur
+        if (currentMap === 'borobudur') {
+            const portal = maps.borobudur.exitRect;
+            const dx = (playerX + PLAYER_SIZE / 2) - (portal.x + portal.w / 2);
+            const dy = (playerY + PLAYER_SIZE / 2) - (portal.y + portal.h / 2);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 100) {
+                hint.style.display = 'flex';
+                hint.innerText = 'F';
+                hint.style.width = '30px';
+                hint.style.borderRadius = '50%';
+                hint.style.position = 'absolute';
+                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - 15) + 'px';
+                hint.style.top = (camY + playerY - 40) + 'px';
+                showingHint = true;
+            }
+        }
     }
     if (!showingHint) hint.style.display = 'none';
 
