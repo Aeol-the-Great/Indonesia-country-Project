@@ -266,8 +266,9 @@ function updateObjective() {
             objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Research Done: Return to Pilot</span>';
             instructionEl.innerText = "Fly the drone back to your character and press F to move on!";
         } else {
-            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Research Blue Lava</span>';
-            instructionEl.innerText = "Pilot the drone over the blue lava vents and take photos!";
+            const completedCount = LAVA_TARGETS.filter(t => t.completed).length;
+            objectiveEl.innerHTML = `<span style="color: #ffca28;">○ Objective: Research Blue Lava (${completedCount}/4)</span>`;
+            instructionEl.innerText = "Pilot the drone over the blue lava vents. Survive the scan, then type the sequence!";
         }
     } else if (currentMap === 'marketplace') {
         if (inventory.sun_hat || inventory.melon) {
@@ -458,7 +459,7 @@ const maps = {
     },
     kawah: {
         img: kawahImg,
-        name: 'KAWAH IJEN - BLUE LAVA',
+        name: 'IJEN CRATER VOLCANOLOGY',
         size: 800,
         spawn: { x: 400, y: 750 }, // Wooden platform bottom
         checkCollision: (x, y) => {
@@ -628,6 +629,10 @@ function resetDrone() {
     document.getElementById('drone-ui').style.display = 'block';
     document.getElementById('photo-prompt').style.display = 'none';
     closeDialogue(); // Unpause the game Loop
+
+    // Ensure researchComplete persists unless we are resetting the whole map
+    const completedCount = LAVA_TARGETS.filter(t => t.completed).length;
+    if (completedCount >= 4) researchComplete = true;
 }
 
 function updateArrowDisplay() {
@@ -1238,19 +1243,17 @@ function updateDrone() {
 
     document.getElementById('heat-fill').style.height = droneHeat + '%';
 
-    if (droneHeat >= 100) {
-        droneDead = true;
-        showDialogue("The drone melted! Retry? (Press Space or Y)");
-        return;
+    // Aggressive Completion Check (Stick to true once hit)
+    const completedCount = LAVA_TARGETS.filter(t => t.completed).length;
+    if (completedCount >= 4) {
+        if (!researchComplete) {
+            researchComplete = true;
+            updateObjective();
+            showDialogue("SCANS COMPLETE! Return to your character at the bottom to board the boat (Press Space/O to close).");
+        }
     }
 
-    // Robust Completion Check
-    const completedCount = LAVA_TARGETS.filter(t => t.completed).length;
-    if (completedCount >= LAVA_TARGETS.length && !researchComplete) {
-        researchComplete = true;
-        updateObjective();
-        showDialogue("Success! All samples captured. Fly back to your character to board the boat (Press Space/O to close).");
-    }
+    if (droneDead) return;
 
     if (dodgeMode) {
         dodgeTimer--;
@@ -1374,6 +1377,9 @@ function updateDrone() {
 }
 
 function drawDroneMinigame() {
+    // Hide interaction hint from other maps/states
+    document.getElementById('interact-hint').style.display = 'none';
+
     // Draw Kawah Ijen
     ctx.drawImage(kawahImg, 0, 0, 600, 600);
 
@@ -1388,22 +1394,43 @@ function drawDroneMinigame() {
 
     // Draw Lava Target Markers
     LAVA_TARGETS.forEach(target => {
-        if (target.completed || target.scanned) return;
+        if (target.completed) return;
+
         // Adjust for 800->600 scale
         const tx = target.x * 600 / 800;
         const ty = target.y * 600 / 800;
 
-        ctx.strokeStyle = '#f44336';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(tx, ty, 20, 0, Math.PI * 2);
-        ctx.stroke();
+        if (!target.scanned) {
+            // RED: Ready for Scan
+            ctx.strokeStyle = '#f44336';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(tx, ty, 20, 0, Math.PI * 2);
+            ctx.stroke();
 
-        // Pulsing glow
-        ctx.shadowBlur = 10 + Math.sin(Date.now() / 200) * 5;
-        ctx.shadowColor = '#f44336';
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+            // Pulsing glow
+            ctx.shadowBlur = 10 + Math.sin(Date.now() / 200) * 5;
+            ctx.shadowColor = '#f44336';
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        } else {
+            // GREEN: Scanned, Ready for Photo/Type
+            ctx.strokeStyle = '#4CAF50';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(tx, ty, 22, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#4CAF50';
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Helpful prompt
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText("READY FOR PHOTO", tx, ty + 40);
+        }
 
         // Draw Sequence symbols above target
         ctx.fillStyle = '#fff';
@@ -1471,17 +1498,27 @@ function drawDroneMinigame() {
 
     // Research Completion UI
     if (researchComplete) {
-        const distToPlayer = Math.sqrt(Math.pow(droneX - 400, 2) + Math.pow(droneY - 742, 2));
-        const nearPlayer = distToPlayer < 100;
+        // Pilot is at roughly 400, 740 in drone coords
+        const dx_pilot = 400;
+        const dy_pilot = 740;
+        const distToPlayer = Math.sqrt(Math.pow(droneX - dx_pilot, 2) + Math.pow(droneY - dy_pilot, 2));
+        const nearPlayer = distToPlayer < 120; // Extra lenient
 
-        // Visual Indicator over the pilot
+        // Visual Indicator over the pilot (viewport coords)
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 20px Arial';
+        ctx.font = 'bold 20px "Courier New", monospace';
         ctx.textAlign = 'center';
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = nearPlayer ? '#4CAF50' : '#f44336';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = nearPlayer ? '#00ff00' : '#ffff00';
         ctx.fillText(nearPlayer ? "CLEARED! PRESS F TO BOARD" : "RETURN TO PILOT AT BOTTOM", 300, 480);
         ctx.shadowBlur = 0;
+
+        // Draw a pulse circle around the landing zone
+        ctx.strokeStyle = nearPlayer ? '#00ff00' : '#ffff00';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(dx_pilot * 600 / 800, dy_pilot * 600 / 800, (30 + Math.sin(Date.now() / 200) * 10), 0, Math.PI * 2);
+        ctx.stroke();
 
         if (nearPlayer) {
             // Giant pastel blue button at top right
@@ -1490,7 +1527,7 @@ function drawDroneMinigame() {
             const btnW = 150;
             const btnH = 60;
 
-            ctx.fillStyle = '#b3e5fc'; // Pastel Blue
+            ctx.fillStyle = 'rgba(179, 229, 252, 0.9)'; // Pastel Blue
             ctx.beginPath();
             ctx.roundRect(btnX, btnY, btnW, btnH, 10);
             ctx.fill();
@@ -1499,11 +1536,11 @@ function drawDroneMinigame() {
             ctx.stroke();
 
             ctx.fillStyle = '#01579b'; // Dark blue text
-            ctx.font = 'bold 24px Arial';
-            ctx.fillText("F", btnX + btnW / 2, btnY + 40);
+            ctx.font = 'bold 28px Arial';
+            ctx.fillText("F", btnX + btnW / 2, btnY + 42);
 
-            ctx.font = '12px Arial';
-            ctx.fillText("BOARD BOAT", btnX + btnW / 2, btnY + 15);
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText("BOARD BOAT", btnX + btnW / 2, btnY + 16);
         }
     }
 }
