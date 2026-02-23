@@ -13,6 +13,11 @@ ui.id = 'ui-overlay';
 ui.innerHTML = `
     <div id="map-name" style="background: rgba(20,20,30,0.8); color: #00d2ff; padding: 10px; border-radius: 8px; font-weight: bold; margin-bottom: 5px;">AIRCRAFT CABIN</div>
     <div id="objective-display" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 5px; border-left: 4px solid #00d2ff;">○ Objective: Purchase Climbers Gear</div>
+    <div id="ice-status" style="display: none; background: rgba(0, 150, 255, 0.4); color: #fff; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #00d2ff; text-align: center; margin-bottom: 5px; text-shadow: 0 0 5px #00d2ff; animation: pulse 1s infinite alternate;">❄ ICE STATUS: FROST AURA ACTIVE</div>
+    <div id="stamina-ui" style="display: none; position: absolute; top: 100px; left: 20px; width: 20px; height: 200px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 5px;">
+        <div id="stamina-fill" style="position: absolute; bottom: 0; width: 100%; height: 100%; background: linear-gradient(to top, #4caf50, #81c784); border-radius: 3px; transition: height 0.1s;"></div>
+        <div style="position: absolute; top: -25px; left: -10px; width: 40px; text-align: center; color: #fff; font-weight: bold; font-size: 10px;">STAMINA</div>
+    </div>
     <div id="budget-container" style="display: none; background: rgba(20,20,30,0.8); color: #4CAF50; padding: 8px 12px; border-radius: 8px; font-size: 16px; font-weight: bold; margin-bottom: 5px; border-left: 4px solid #4CAF50;">Budget: $<span id="budget-value">1000</span></div>
     <div id="drone-ui" style="display: none; position: absolute; top: 100px; right: 20px; width: 40px; height: 200px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 5px;">
         <div id="heat-fill" style="position: absolute; bottom: 0; width: 100%; height: 0%; background: linear-gradient(to top, #ffeb3b, #f44336); border-radius: 3px; transition: height 0.1s;"></div>
@@ -122,15 +127,19 @@ let dodgeTimer = 0;
 let droneProjectiles = [];
 let droneExplosions = [];
 let currentPhotoTarget = null;
-let currentPhotoInput = "";
 let photoSuccessCount = 0;
 let researchComplete = false;
+let iceStatusTimer = 0;
+let stamina = 100;
+let isExhausted = false;
+let boatPausedTimer = 0;
+let lakeWaves = [];
 
 const LAVA_TARGETS = [
-    { id: 'top', x: 400, y: 200, sequence: ['arrowup', 'arrowup', 'arrowdown', 'arrowleft'], direction: 'UP UP DOWN LEFT', color: 'cyan', completed: false },
-    { id: 'left', x: 200, y: 400, sequence: ['arrowleft', 'arrowup', 'arrowdown', 'arrowright'], direction: 'LEFT UP DOWN RIGHT', color: 'cyan', completed: false },
-    { id: 'right', x: 600, y: 400, sequence: ['arrowright', 'arrowdown', 'arrowright', 'arrowup'], direction: 'RIGHT DOWN RIGHT UP', color: 'cyan', completed: false },
-    { id: 'bottom', x: 400, y: 600, sequence: ['arrowdown', 'arrowright', 'arrowup', 'arrowleft'], direction: 'DOWN RIGHT UP LEFT', color: 'cyan', completed: false }
+    { id: 'top', x: 400, y: 200, sequence: ['arrowup', 'arrowup', 'arrowdown', 'arrowleft'], direction: 'UP UP DOWN LEFT', color: 'cyan', completed: false, scanned: false },
+    { id: 'left', x: 200, y: 400, sequence: ['arrowleft', 'arrowup', 'arrowdown', 'arrowright'], direction: 'LEFT UP DOWN RIGHT', color: 'cyan', completed: false, scanned: false },
+    { id: 'right', x: 600, y: 400, sequence: ['arrowright', 'arrowdown', 'arrowright', 'arrowup'], direction: 'RIGHT DOWN RIGHT UP', color: 'cyan', completed: false, scanned: false },
+    { id: 'bottom', x: 400, y: 600, sequence: ['arrowdown', 'arrowright', 'arrowup', 'arrowleft'], direction: 'DOWN RIGHT UP LEFT', color: 'cyan', completed: false, scanned: false }
 ];
 
 function openShop() {
@@ -253,8 +262,13 @@ function updateObjective() {
     const instructionEl = document.getElementById('instructions');
 
     if (currentMap === 'kawah') {
-        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Research Blue Lava</span>';
-        instructionEl.innerText = "Pilot the drone over the blue lava vents and take photos!";
+        if (researchComplete) {
+            objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Research Done: Return to Pilot</span>';
+            instructionEl.innerText = "Fly the drone back to your character and press F to move on!";
+        } else {
+            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Research Blue Lava</span>';
+            instructionEl.innerText = "Pilot the drone over the blue lava vents and take photos!";
+        }
     } else if (currentMap === 'marketplace') {
         if (inventory.sun_hat || inventory.melon) {
             objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Souvenir Acquired</span>';
@@ -311,6 +325,14 @@ const lakeTobaImg = new Image();
 lakeTobaImg.src = 'pixil-frame-0 (26).png';
 const swordImg = new Image();
 swordImg.src = 'pixil-frame-0 (28).png';
+const boatRightImg = new Image();
+boatRightImg.src = 'pixil-frame-0 (30).png';
+const boatDownImg = new Image();
+boatDownImg.src = 'pixil-frame-0 (31).png';
+const boatUpImg = new Image();
+boatUpImg.src = 'pixil-frame-0 (32).png';
+const boatLeftImg = new Image();
+boatLeftImg.src = 'pixil-frame-0 (33).png';
 
 const VIEWPORT_WIDTH = 600;
 const VIEWPORT_HEIGHT = 600;
@@ -321,6 +343,7 @@ const SPEED = 5;
 let currentMap = 'aircraft';
 let playerX = 400;
 let playerY = 700;
+let playerFacing = 'down';
 let keys = {};
 let isDialogueOpen = false;
 
@@ -479,12 +502,16 @@ window.addEventListener('keydown', e => {
         return;
     }
 
-    // Priority 3: Transition to Lake Toba after research
-    if (researchComplete && (key === 'f' || key === ' ')) {
-        isDroneActive = false;
-        researchComplete = false; // Reset for potential replay or just to clear UI
-        triggerTransition('lake_toba', maps.lake_toba.spawn.x, maps.lake_toba.spawn.y);
-        return;
+    // Priority 3: Transition to Lake Toba after research (Must be near player)
+    if (researchComplete && key === 'f') {
+        const distToPlayer = Math.sqrt(Math.pow(droneX - 400, 2) + Math.pow(droneY - 742, 2));
+        if (distToPlayer < 100) { // Slightly larger radius for ease of use
+            isDroneActive = false;
+            researchComplete = false;
+            closeDialogue(); // Ensure no leftover messages
+            triggerTransition('lake_toba', maps.lake_toba.spawn.x, maps.lake_toba.spawn.y);
+            return;
+        }
     }
 
     // Priority 4: Active Drone Input
@@ -554,7 +581,8 @@ function handleDroneInput(key) {
                 document.getElementById('photo-prompt').style.display = 'none';
                 if (photoSuccessCount >= LAVA_TARGETS.length) {
                     researchComplete = true;
-                    showDialogue("All blue lava samples captured! The research is a success.");
+                    updateObjective();
+                    showDialogue("All blue lava samples captured! Fly the drone back to your character to board the boat (Press Space/O to close this message).");
                 }
             }
         } else if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
@@ -568,11 +596,20 @@ function handleDroneInput(key) {
             const dx = droneX - target.x;
             const dy = droneY - target.y;
             if (Math.sqrt(dx * dx + dy * dy) < 60) {
-                dodgeMode = true;
-                dodgeTimer = 300; // 5 seconds
-                currentPhotoTarget = target;
-                droneProjectiles = [];
-                droneExplosions = [];
+                if (target.scanned) {
+                    // Already scanned, just restart photo mode
+                    photoMode = true;
+                    currentPhotoTarget = target;
+                    currentPhotoInput = "";
+                    document.getElementById('photo-prompt').style.display = 'block';
+                    updateArrowDisplay();
+                } else {
+                    dodgeMode = true;
+                    dodgeTimer = 300; // 5 seconds
+                    currentPhotoTarget = target;
+                    droneProjectiles = [];
+                    droneExplosions = [];
+                }
             }
         });
     }
@@ -711,6 +748,12 @@ function update() {
                 isDroneActive = true;
                 resetDrone();
                 updateObjective();
+            } else if (currentMap === 'lake_toba') {
+                document.getElementById('stamina-ui').style.display = 'block';
+                stamina = 100;
+                isExhausted = false;
+            } else {
+                document.getElementById('stamina-ui').style.display = 'none';
             }
         }
         if (transitionTimer <= 0) {
@@ -720,18 +763,22 @@ function update() {
         return;
     }
 
-    if (isDialogueOpen || isShopOpen) return;
+    if (!isDialogueOpen && !isShopOpen) {
+        if (isClimbing) {
+            timingArrowPos += 0.02 * timingArrowDir;
+            if (timingArrowPos > 1 || timingArrowPos < 0) timingArrowDir *= -1;
+            if (feedbackTimer > 0) feedbackTimer--;
+            return;
+        }
 
-    if (isClimbing) {
-        timingArrowPos += 0.02 * timingArrowDir;
-        if (timingArrowPos > 1 || timingArrowPos < 0) timingArrowDir *= -1;
-        if (feedbackTimer > 0) feedbackTimer--;
-        return;
-    }
-
-    if (isDroneActive && !droneDead) {
-        updateDrone();
-        return;
+        if (isDroneActive && !droneDead) {
+            updateDrone();
+            return;
+        }
+    } else {
+        // Special case: Allow drone and stamina updates during dialogue for extraction/boat
+        if (isDroneActive && !droneDead) updateDrone();
+        if (currentMap === 'lake_toba') updateStaminaAndWaves(0, 0); // Helper or similar
     }
 
     if (splashActive) {
@@ -777,10 +824,73 @@ function update() {
     let moveX = 0;
     let moveY = 0;
 
-    if (keys['w']) moveY -= SPEED;
-    if (keys['s']) moveY += SPEED;
-    if (keys['a']) moveX -= SPEED;
-    if (keys['d']) moveX += SPEED;
+    let canMove = true;
+    if (currentMap === 'lake_toba') {
+        if (boatPausedTimer > 0) {
+            boatPausedTimer--;
+            canMove = false;
+        }
+        if (isExhausted) {
+            canMove = false;
+        }
+    }
+
+    if (canMove) {
+        if (keys['w']) { moveY -= SPEED; playerFacing = 'up'; }
+        if (keys['s']) { moveY += SPEED; playerFacing = 'down'; }
+        if (keys['a']) { moveX -= SPEED; playerFacing = 'left'; }
+        if (keys['d']) { moveX += SPEED; playerFacing = 'right'; }
+    }
+
+    // Stamina Logic for Lake Toba
+    if (currentMap === 'lake_toba') {
+        const isMoving = moveX !== 0 || moveY !== 0;
+        const rechargeRate = 0.2;
+        const exhaustedRechargeRate = rechargeRate * 1.5;
+
+        if (isMoving) {
+            stamina = Math.max(0, stamina - 0.5);
+            if (stamina === 0) isExhausted = true;
+        } else {
+            const currentRecharge = isExhausted ? exhaustedRechargeRate : rechargeRate;
+            stamina = Math.min(100, stamina + currentRecharge);
+            if (stamina === 100) isExhausted = false;
+        }
+
+        // Update Stamina UI
+        const fill = document.getElementById('stamina-fill');
+        fill.style.height = stamina + '%';
+        fill.style.background = isExhausted ? '#f44336' : (stamina < 30 ? '#ff9800' : '#4caf50');
+
+        // Lake Waves Logic
+        if (Math.random() < 0.02) { // Spawn wave
+            lakeWaves.push({
+                x: 350 + Math.random() * 300,
+                y: 100 + Math.random() * 450,
+                radius: 5,
+                maxRadius: 40 + Math.random() * 30,
+                life: 60
+            });
+        }
+
+        lakeWaves.forEach(w => {
+            w.radius += 1;
+            w.life--;
+
+            // Collision with boat
+            const dx = (playerX + PLAYER_SIZE / 2) - w.x;
+            const dy = (playerY + PLAYER_SIZE / 2) - w.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < w.radius + 15 && w.life > 20) {
+                if (boatPausedTimer === 0) {
+                    boatPausedTimer = 60; // 1 second pause
+                    stamina = Math.max(0, stamina - 20);
+                }
+            }
+        });
+        lakeWaves = lakeWaves.filter(w => w.life > 0);
+    }
 
     const activeMap = maps[currentMap];
     const mapSize = activeMap.size || MAP_SIZE;
@@ -865,6 +975,30 @@ function draw() {
 
     const activeImg = activeMap.img;
     ctx.drawImage(activeImg, camX, camY, mapSize, mapSize);
+
+    // Draw Lake Waves
+    if (currentMap === 'lake_toba') {
+        lakeWaves.forEach(w => {
+            const alpha = w.life / 60;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(camX + w.x, camY + w.y, w.radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(0, 210, 255, ${alpha * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(camX + w.x, camY + w.y, w.radius - 5, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+
+        if (boatPausedTimer > 0) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('WAVE IMPACT!', 300, 250);
+        }
+    }
 
     // Draw Exit Marker for Borobudur
     if (currentMap === 'borobudur') {
@@ -952,14 +1086,29 @@ function draw() {
 
     // Draw Player
     if (!isClimbing && !splashActive) {
-        ctx.fillStyle = '#00d2ff';
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
-        ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+        if (currentMap === 'lake_toba') {
+            // Draw Boat
+            let boatImg = boatDownImg;
+            if (playerFacing === 'up') boatImg = boatUpImg;
+            if (playerFacing === 'left') boatImg = boatLeftImg;
+            if (playerFacing === 'right') boatImg = boatRightImg;
+
+            // Adjust size to make it look boat-shaped
+            const isHorizontal = playerFacing === 'left' || playerFacing === 'right';
+            const bW = isHorizontal ? 64 : 32;
+            const bH = isHorizontal ? 32 : 64;
+
+            ctx.drawImage(boatImg, camX + playerX - (isHorizontal ? 16 : 0), camY + playerY - (isHorizontal ? 0 : 16), bW, bH);
+        } else {
+            ctx.fillStyle = '#00d2ff';
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.fillRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+            ctx.strokeRect(camX + playerX, camY + playerY, PLAYER_SIZE, PLAYER_SIZE);
+        }
 
         // Draw Souvenir Hat
-        if (inventory.sun_hat) {
+        if (inventory.sun_hat && currentMap !== 'lake_toba') {
             ctx.drawImage(strawHatImg, camX + playerX - 10, camY + playerY - 15, PLAYER_SIZE + 20, 25);
         }
     }
@@ -1092,6 +1241,15 @@ function updateDrone() {
     if (droneHeat >= 100) {
         droneDead = true;
         showDialogue("The drone melted! Retry? (Press Space or Y)");
+        return;
+    }
+
+    // Robust Completion Check
+    const completedCount = LAVA_TARGETS.filter(t => t.completed).length;
+    if (completedCount >= LAVA_TARGETS.length && !researchComplete) {
+        researchComplete = true;
+        updateObjective();
+        showDialogue("Success! All samples captured. Fly back to your character to board the boat (Press Space/O to close).");
     }
 
     if (dodgeMode) {
@@ -1123,13 +1281,27 @@ function updateDrone() {
 
         // Update Projectiles
         droneProjectiles.forEach(p => {
-            p.x += p.vx;
-            p.y += p.vy;
-
-            // Collision with drone
             const dx = droneX - p.x;
             const dy = droneY - p.y;
-            if (Math.sqrt(dx * dx + dy * dy) < p.size + 5) {
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Frost Aura Freeze Logic (Requires Melon + Katana)
+            if (inventory.melon && inventory.sword && dist < 40 && !p.frozen) {
+                p.frozen = true;
+                p.freezeTimer = 240; // 4 seconds
+                iceStatusTimer = 240;
+            }
+
+            if (p.frozen) {
+                p.freezeTimer--;
+                if (p.freezeTimer <= 0) p.frozen = false;
+            } else {
+                p.x += p.vx;
+                p.y += p.vy;
+            }
+
+            // Collision with drone
+            if (dist < p.size + 5) {
                 droneDead = true;
                 showDialogue("Acidic Explosion Destroyed the Drone! Retry? (Press Space or Y)");
             }
@@ -1138,22 +1310,46 @@ function updateDrone() {
 
         // Update Explosions
         droneExplosions.forEach(exp => {
-            exp.radius += 2;
-            exp.life--;
-
-            // Explosion collision
             const dx = droneX - exp.x;
             const dy = droneY - exp.y;
-            if (Math.sqrt(dx * dx + dy * dy) < exp.radius && exp.life > 30) {
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Frost Aura Freeze for Explosions
+            if (inventory.melon && inventory.sword && dist < 40 && !exp.frozen) {
+                exp.frozen = true;
+                exp.freezeTimer = 240;
+                iceStatusTimer = 240;
+            }
+
+            if (exp.frozen) {
+                exp.freezeTimer--;
+                if (exp.freezeTimer <= 0) exp.frozen = false;
+            } else {
+                exp.radius += 2;
+                exp.life--;
+            }
+
+            // Explosion collision
+            if (dist < exp.radius && exp.life > 30) {
                 droneDead = true;
                 showDialogue("The Nuclear Blue Fire Consumed You! Retry? (Press Space or Y)");
             }
         });
         droneExplosions = droneExplosions.filter(exp => exp.life > 0);
 
+        // Handle Ice Status UI
+        const iceUI = document.getElementById('ice-status');
+        if (iceStatusTimer > 0) {
+            iceStatusTimer--;
+            iceUI.style.display = 'block';
+        } else {
+            iceUI.style.display = 'none';
+        }
+
         if (dodgeTimer <= 0) {
             dodgeMode = false;
             photoMode = true;
+            currentPhotoTarget.scanned = true; // Mark as scanned so red indicator disappears
             currentPhotoInput = "";
             document.getElementById('photo-prompt').style.display = 'block';
             updateArrowDisplay();
@@ -1192,7 +1388,7 @@ function drawDroneMinigame() {
 
     // Draw Lava Target Markers
     LAVA_TARGETS.forEach(target => {
-        if (target.completed) return;
+        if (target.completed || target.scanned) return;
         // Adjust for 800->600 scale
         const tx = target.x * 600 / 800;
         const ty = target.y * 600 / 800;
@@ -1220,20 +1416,27 @@ function drawDroneMinigame() {
 
     // Draw Projectiles
     droneProjectiles.forEach(p => {
-        ctx.fillStyle = '#00d2ff';
+        ctx.fillStyle = p.frozen ? '#e1f5fe' : '#00d2ff';
         ctx.shadowBlur = 10;
-        ctx.shadowColor = '#00d2ff';
+        ctx.shadowColor = p.frozen ? '#00d2ff' : '#00d2ff';
         ctx.beginPath();
         ctx.arc(p.x * 600 / 800, p.y * 600 / 800, p.size * 600 / 800, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
+
+        if (p.frozen) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
     });
 
     // Draw Explosions
     droneExplosions.forEach(exp => {
         const alpha = exp.life / 60;
-        ctx.fillStyle = `rgba(0, 210, 255, ${alpha * 0.5})`;
-        ctx.strokeStyle = `rgba(130, 255, 255, ${alpha})`;
+        const color = exp.frozen ? `rgba(179, 229, 252, ${alpha * 0.7})` : `rgba(0, 210, 255, ${alpha * 0.5})`;
+        ctx.fillStyle = color;
+        ctx.strokeStyle = exp.frozen ? `rgba(255, 255, 255, ${alpha})` : `rgba(130, 255, 255, ${alpha})`;
         ctx.beginPath();
         ctx.arc(exp.x * 600 / 800, exp.y * 600 / 800, exp.radius * 600 / 800, 0, Math.PI * 2);
         ctx.fill();
@@ -1268,39 +1471,44 @@ function drawDroneMinigame() {
 
     // Research Completion UI
     if (researchComplete) {
-        // "You did great! Time to rest!" over the player
+        const distToPlayer = Math.sqrt(Math.pow(droneX - 400, 2) + Math.pow(droneY - 742, 2));
+        const nearPlayer = distToPlayer < 100;
+
+        // Visual Indicator over the pilot
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 18px Arial';
+        ctx.font = 'bold 20px Arial';
         ctx.textAlign = 'center';
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = '#000';
-        ctx.fillText("You did great! Time to rest!", 300, 520);
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = nearPlayer ? '#4CAF50' : '#f44336';
+        ctx.fillText(nearPlayer ? "CLEARED! PRESS F TO BOARD" : "RETURN TO PILOT AT BOTTOM", 300, 480);
         ctx.shadowBlur = 0;
 
-        // Giant pastel blue button at top right
-        const btnX = 420;
-        const btnY = 30;
-        const btnW = 150;
-        const btnH = 60;
+        if (nearPlayer) {
+            // Giant pastel blue button at top right
+            const btnX = 420;
+            const btnY = 30;
+            const btnW = 150;
+            const btnH = 60;
 
-        ctx.fillStyle = '#b3e5fc'; // Pastel Blue
-        ctx.beginPath();
-        ctx.roundRect(btnX, btnY, btnW, btnH, 10);
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        ctx.stroke();
+            ctx.fillStyle = '#b3e5fc'; // Pastel Blue
+            ctx.beginPath();
+            ctx.roundRect(btnX, btnY, btnW, btnH, 10);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
 
-        ctx.fillStyle = '#01579b'; // Dark blue text
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText("F / SPACE", btnX + btnW / 2, btnY + 40);
+            ctx.fillStyle = '#01579b'; // Dark blue text
+            ctx.font = 'bold 24px Arial';
+            ctx.fillText("F", btnX + btnW / 2, btnY + 40);
 
-        ctx.font = '12px Arial';
-        ctx.fillText("NEXT LEVEL", btnX + btnW / 2, btnY + 15);
+            ctx.font = '12px Arial';
+            ctx.fillText("BOARD BOAT", btnX + btnW / 2, btnY + 15);
+        }
     }
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg, lakeTobaImg, swordImg];
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg, lakeTobaImg, swordImg, boatRightImg, boatDownImg, boatUpImg, boatLeftImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
