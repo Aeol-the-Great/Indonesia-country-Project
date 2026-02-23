@@ -94,7 +94,8 @@ let debugMode = false;
 let inventory = {
     climbers_gear: false,
     sun_hat: false,
-    melon: false
+    melon: false,
+    sword: false
 };
 let budget = 1000;
 
@@ -210,6 +211,43 @@ window.selectSouvenir = function (itemId) {
     updateObjective();
 }
 
+window.openSwordShop = function () {
+    isShopOpen = true;
+    updateSwordShopUI();
+    shopUI.style.display = 'block';
+}
+
+window.updateSwordShopUI = function () {
+    shopUI.innerHTML = `
+        <h2 style="color: #607d8b; margin-bottom: 20px; font-size: 24px;">???</h2>
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: rgba(0, 0, 0, 0.4); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 2px solid #555;">
+                <img src="pixil-frame-0 (28).png" style="width: 60px; height: 60px; image-rendering: pixelated;">
+            </div>
+            <p style="margin-bottom: 15px; font-size: 16px; color: #cfd8dc;">"Never touch it without its scabbard nearby... wait... where's the scabbard!?"</p>
+            <div style="color: #ff5252; font-weight: bold; margin-bottom: 15px;">+1000% CRITDMG</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; border: 1px solid #444;">
+                <span style="font-weight: bold;">Mysterious Sword</span>
+                ${inventory.sword
+            ? '<span style="color: #4CAF50; font-weight: bold;">ACQUIRED</span>'
+            : (budget >= 1000
+                ? '<button onclick="buySword()" style="background: #607d8b; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">$1000</button>'
+                : '<span style="color: #f44336; font-size: 12px;">INSUFFICIENT FUNDS</span>')}
+            </div>
+        </div>
+        <button onclick="closeShop()" style="background: none; border: 2px solid #fff; color: #fff; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">CLOSE</button>
+    `;
+}
+
+window.buySword = function () {
+    if (budget >= 1000) {
+        budget -= 1000;
+        inventory.sword = true;
+        document.getElementById('budget-value').innerText = budget;
+        updateSwordShopUI();
+    }
+}
+
 function updateObjective() {
     const objectiveEl = document.getElementById('objective-display');
     const instructionEl = document.getElementById('instructions');
@@ -234,6 +272,9 @@ function updateObjective() {
     } else if (currentMap === 'airport') {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Enter the Gate</span>';
         instructionEl.innerText = "Enter the gate doors to start your journey!";
+    } else if (currentMap === 'lake_toba') {
+        objectiveEl.innerHTML = '<span style="color: #00d2ff;">○ Objective: Enjoy Lake Toba</span>';
+        instructionEl.innerText = "You're on a boat! Relax and enjoy the view of the worlds largest volcanic lake.";
     } else if (inventory.climbers_gear) {
         objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Equipment Acquired</span>';
         instructionEl.innerText = "Move to the rock face and press SPACE to climb!";
@@ -268,6 +309,8 @@ melonImg.src = 'pixilart-drawing (7).png';
 kawahImg.src = 'pixil-frame-0 (15).png';
 const lakeTobaImg = new Image();
 lakeTobaImg.src = 'pixil-frame-0 (26).png';
+const swordImg = new Image();
+swordImg.src = 'pixil-frame-0 (28).png';
 
 const VIEWPORT_WIDTH = 600;
 const VIEWPORT_HEIGHT = 600;
@@ -383,6 +426,10 @@ const maps = {
             {
                 x: 310, y: 530, w: 140, h: 380, // Peach buildings
                 type: 'souvenir_shop'
+            },
+            {
+                x: 450, y: 0, w: 100, h: 50, // Dark grey area at the top
+                type: 'sword_shop'
             }
         ]
     },
@@ -624,6 +671,8 @@ function checkInteraction() {
                 openShop();
             } else if (obj.type === 'souvenir_shop') {
                 openSouvenirShop();
+            } else if (obj.type === 'sword_shop') {
+                openSwordShop();
             } else {
                 showDialogue(obj.text);
             }
@@ -1251,7 +1300,7 @@ function drawDroneMinigame() {
     }
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg, lakeTobaImg];
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg, lakeTobaImg, swordImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
