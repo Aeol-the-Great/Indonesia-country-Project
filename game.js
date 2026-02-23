@@ -123,6 +123,7 @@ let droneExplosions = [];
 let currentPhotoTarget = null;
 let currentPhotoInput = "";
 let photoSuccessCount = 0;
+let researchComplete = false;
 
 const LAVA_TARGETS = [
     { id: 'top', x: 400, y: 200, sequence: ['arrowup', 'arrowup', 'arrowdown', 'arrowleft'], direction: 'UP UP DOWN LEFT', color: 'cyan', completed: false },
@@ -265,6 +266,8 @@ marketplaceImg.src = 'pixilart-drawing (6).png';
 strawHatImg.src = 'pixil-frame-0 (22).png';
 melonImg.src = 'pixilart-drawing (7).png';
 kawahImg.src = 'pixil-frame-0 (15).png';
+const lakeTobaImg = new Image();
+lakeTobaImg.src = 'pixil-frame-0 (26).png';
 
 const VIEWPORT_WIDTH = 600;
 const VIEWPORT_HEIGHT = 600;
@@ -394,6 +397,19 @@ const maps = {
             return true;
         },
         interactables: []
+    },
+    lake_toba: {
+        img: lakeTobaImg,
+        name: 'LAKE TOBA BOAT TRIP',
+        size: 800,
+        spawn: { x: 400, y: 400 },
+        checkCollision: (x, y) => {
+            // Only allow movement within the orange bounds
+            // Roughly 150 to 700 horizontally, 60 to 600 vertically on 800x800 map
+            if (x < 150 || x > 700 || y < 60 || y > 600) return true;
+            return false;
+        },
+        interactables: []
     }
 };
 
@@ -401,19 +417,38 @@ window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     keys[key] = true;
 
+    // Priority 1: Dialogue Handling (Ensures we never get stuck)
+    if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ')) {
+        closeDialogue();
+        if (droneDead && (key === 'y' || key === ' ')) {
+            resetDrone();
+        }
+        return;
+    }
+
+    // Priority 2: Drone Death Retry (Fallback)
+    if (droneDead && (key === 'y' || key === ' ')) {
+        resetDrone();
+        return;
+    }
+
+    // Priority 3: Transition to Lake Toba after research
+    if (researchComplete && (key === 'f' || key === ' ')) {
+        isDroneActive = false;
+        researchComplete = false; // Reset for potential replay or just to clear UI
+        triggerTransition('lake_toba', maps.lake_toba.spawn.x, maps.lake_toba.spawn.y);
+        return;
+    }
+
+    // Priority 4: Active Drone Input
     if (isDroneActive && !droneDead) {
         handleDroneInput(key);
-        return;
-    } else if (droneDead && (key === 'y' || key === ' ')) {
-        resetDrone();
         return;
     }
 
     // Interact with O key
     if (key === 'o' && !isDialogueOpen && !isShopOpen && !isClimbing) {
         checkInteraction();
-    } else if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ')) {
-        closeDialogue();
     } else if (isShopOpen && key === 'escape') {
         closeShop();
     } else if (key === ' ' && !isDialogueOpen && !isShopOpen) {
@@ -471,6 +506,7 @@ function handleDroneInput(key) {
                 photoSuccessCount++;
                 document.getElementById('photo-prompt').style.display = 'none';
                 if (photoSuccessCount >= LAVA_TARGETS.length) {
+                    researchComplete = true;
                     showDialogue("All blue lava samples captured! The research is a success.");
                 }
             }
@@ -507,6 +543,7 @@ function resetDrone() {
     currentPhotoInput = "";
     document.getElementById('drone-ui').style.display = 'block';
     document.getElementById('photo-prompt').style.display = 'none';
+    closeDialogue(); // Unpause the game Loop
 }
 
 function updateArrowDisplay() {
@@ -1011,8 +1048,8 @@ function updateDrone() {
     if (dodgeMode) {
         dodgeTimer--;
 
-        // Spawn flurry of acidic blue projectiles
-        if (dodgeTimer % 5 === 0) {
+        // Spawn flurry of acidic blue projectiles (Reduced frequency)
+        if (dodgeTimer % 15 === 0) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 2 + Math.random() * 4;
             droneProjectiles.push({
@@ -1024,13 +1061,13 @@ function updateDrone() {
             });
         }
 
-        // Random explosions
-        if (dodgeTimer % 40 === 0) {
+        // Random explosions (Shockwaves) - Reduced frequency and now coming from red research zones
+        if (dodgeTimer % 100 === 0) {
             droneExplosions.push({
-                x: droneX + (Math.random() - 0.5) * 200,
-                y: droneY + (Math.random() - 0.5) * 200,
+                x: currentPhotoTarget.x,
+                y: currentPhotoTarget.y,
                 radius: 10,
-                maxRadius: 40 + Math.random() * 40,
+                maxRadius: 60 + Math.random() * 40,
                 life: 60
             });
         }
@@ -1179,9 +1216,42 @@ function drawDroneMinigame() {
     ctx.moveTo(dx - 15 * Math.cos(angle), dy - 15 * Math.sin(angle));
     ctx.lineTo(dx + 15 * Math.cos(angle), dy + 15 * Math.sin(angle));
     ctx.stroke();
+
+    // Research Completion UI
+    if (researchComplete) {
+        // "You did great! Time to rest!" over the player
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = '#000';
+        ctx.fillText("You did great! Time to rest!", 300, 520);
+        ctx.shadowBlur = 0;
+
+        // Giant pastel blue button at top right
+        const btnX = 420;
+        const btnY = 30;
+        const btnW = 150;
+        const btnH = 60;
+
+        ctx.fillStyle = '#b3e5fc'; // Pastel Blue
+        ctx.beginPath();
+        ctx.roundRect(btnX, btnY, btnW, btnH, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#01579b'; // Dark blue text
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText("F / SPACE", btnX + btnW / 2, btnY + 40);
+
+        ctx.font = '12px Arial';
+        ctx.fillText("NEXT LEVEL", btnX + btnW / 2, btnY + 15);
+    }
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg];
+const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg, lakeTobaImg];
 let loadedCount = 0;
 images.forEach(img => {
     img.onload = () => {
