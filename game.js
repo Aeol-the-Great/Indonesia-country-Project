@@ -23,9 +23,9 @@ ui.innerHTML = `
         <div id="heat-fill" style="position: absolute; bottom: 0; width: 100%; height: 0%; background: linear-gradient(to top, #ffeb3b, #f44336); border-radius: 3px; transition: height 0.1s;"></div>
         <div style="position: absolute; top: -25px; left: 0; width: 100%; text-align: center; color: #fff; font-weight: bold; font-size: 12px;">HEAT</div>
     </div>
-    <div id="photo-prompt" style="display: none; position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #00d2ff; text-align: center;">
-        <div style="color: #fff; margin-bottom: 10px; font-weight: bold;">TYPE TO PHOTOGRAPH</div>
-        <div id="arrow-sequence" style="font-size: 24px; letter-spacing: 5px;"></div>
+    <div id="photo-prompt" style="display: none; position: absolute; top: 150px; left: 50%; transform: translateX(-50%); background: rgba(10,10,20,0.9); width: 400px; padding: 10px 20px; border: 2px solid #00d2ff; box-shadow: 0 0 20px rgba(0,210,255,0.5); border-radius: 4px; text-align: center;">
+        <div style="color: #00d2ff; font-size: 12px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 2px;">Secured Connection: Enter Access Code</div>
+        <div id="arrow-sequence" style="font-size: 28px; letter-spacing: 15px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 4px;"></div>
     </div>
     <div id="instructions" style="background: rgba(20,20,30,0.8); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0.8; margin-bottom: 5px;">Move with WASD or Arrows. Find the exit!</div>
     <div id="interact-hint" style="display: none; background: rgba(255,255,255,0.9); color: #000; width: 30px; height: 30px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; font-family: Arial; border: 2px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.5);">O</div>
@@ -100,13 +100,113 @@ let inventory = {
     climbers_gear: false,
     sun_hat: false,
     melon: false,
-    sword: false
+    sword: false,
+    lorebook: false
 };
 let budget = 1000;
 
+let isLorebookOpen = false;
+const loreEntries = {
+    aircraft: "A tight aircraft cabin. The seats are red and the aisle is blue. It smells like recycled air and anticipation.",
+    airport: "Soekarno-Hatta International Airport. The gateway to the archipelago.",
+    destination: "Gunung Parang. A massive andesite intrusion. The steel rungs look daunting but the view from the hanging hotel is worth it.",
+    borobudur: "The world's largest Buddhist temple. A masterpiece of stone and devotion.",
+    marketplace: "Ubud Art Market. A kaleidoscope of colors, crafts, and culture.",
+    kawah: "Ijen Crater. Famous for its electric blue flames and the sulfur miners' perseverance.",
+    lake_toba: "The largest volcanic lake in the world. Formed by a supervolcanic eruption that changed the world."
+};
+
 let transitionActive = false;
 let transitionTimer = 0;
-let pendingTransition = null;
+const lorebookUI = document.createElement('div');
+lorebookUI.id = 'lorebook-ui';
+lorebookUI.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px;
+    height: 600px;
+    background: #f4e4bc;
+    color: #433422;
+    padding: 40px;
+    border: 10px solid #5d4037;
+    border-radius: 4px;
+    display: none;
+    z-index: 3000;
+    box-shadow: 0 0 50px rgba(0,0,0,0.8), inset 0 0 100px rgba(0,0,0,0.1);
+    font-family: 'Georgia', serif;
+    overflow-y: auto;
+`;
+container.appendChild(lorebookUI);
+
+function openLorebook() {
+    isLorebookOpen = true;
+    updateLorebookUI();
+    lorebookUI.style.display = 'block';
+}
+
+function closeLorebook() {
+    isLorebookOpen = false;
+    lorebookUI.style.display = 'none';
+}
+
+function updateLorebookUI() {
+    let html = `
+        <h1 style="text-align: center; border-bottom: 2px solid #5d4037; padding-bottom: 10px; margin-top: 0;">ENCYCLOPEDIA INDONESIA</h1>
+        <div style="font-style: italic; text-align: center; margin-bottom: 20px;">Traveler's Records</div>
+    `;
+
+    for (const [key, entry] of Object.entries(loreEntries)) {
+        const isDiscovered = currentMap === key || (key === 'aircraft' && currentMap !== 'none'); // Simplified discovery
+        html += `
+            <div style="margin-bottom: 25px; padding: 15px; border-left: 3px solid #5d4037; background: rgba(0,0,0,0.03);">
+                <h3 style="margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 1px;">${key.replace('_', ' ')}</h3>
+                <p style="margin: 0; line-height: 1.5; color: #5d4037;">${isDiscovered ? entry : "?? discovered by visiting ??"}</p>
+            </div>
+        `;
+    }
+
+    html += `<div style="text-align: center; margin-top: 30px; font-size: 12px; opacity: 0.7;">[Press TAB to close]</div>`;
+    lorebookUI.innerHTML = html;
+}
+
+window.openLoreShop = function () {
+    isShopOpen = true;
+    updateLoreShopUI();
+    shopUI.style.display = 'block';
+}
+
+window.updateLoreShopUI = function () {
+    shopUI.innerHTML = `
+        <h2 style="color: #ff9800; margin-bottom: 20px; font-size: 24px;">LORE KEEPER'S HUT</h2>
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: rgba(121, 85, 72, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 2px solid #795548;">
+                <div style="font-size: 40px;">📖</div>
+            </div>
+            <p style="margin-bottom: 15px; font-size: 16px;">"A book that grows with your journey. Contains wisdom of the islands."</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; border: 1px solid #795548;">
+                <span style="font-weight: bold;">Lorebook</span>
+                ${inventory.lorebook
+            ? '<span style="color: #4CAF50; font-weight: bold;">OWNED</span>'
+            : (budget >= 100
+                ? '<button onclick="buyLorebook()" style="background: #ff9800; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">$100</button>'
+                : '<span style="color: #f44336; font-size: 12px;">INSUFFICIENT FUNDS</span>')}
+            </div>
+        </div>
+        <button onclick="closeShop()" style="background: none; border: 2px solid #fff; color: #fff; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">CLOSE</button>
+    `;
+}
+
+window.buyLorebook = function () {
+    if (budget >= 100) {
+        budget -= 100;
+        inventory.lorebook = true;
+        document.getElementById('budget-value').innerText = budget;
+        updateLoreShopUI();
+        updateObjective();
+    }
+}
 
 function triggerTransition(nextMap, nextX, nextY) {
     if (transitionActive) return;
@@ -134,6 +234,9 @@ let stamina = 100;
 let isExhausted = false;
 let boatPausedTimer = 0;
 let lakeWaves = [];
+let boatVX = 0;
+let boatVY = 0;
+let currentPhotoIndex = 0;
 
 const LAVA_TARGETS = [
     { id: 'top', x: 400, y: 200, sequence: ['arrowup', 'arrowup', 'arrowdown', 'arrowleft'], direction: 'UP UP DOWN LEFT', color: 'cyan', completed: false, scanned: false },
@@ -268,7 +371,7 @@ function updateObjective() {
         } else {
             const completedCount = LAVA_TARGETS.filter(t => t.completed).length;
             objectiveEl.innerHTML = `<span style="color: #ffca28;">○ Objective: Research Blue Lava (${completedCount}/4)</span>`;
-            instructionEl.innerText = "Pilot the drone over the blue lava vents. Survive the scan, then type the sequence!";
+            instructionEl.innerText = "Pilot over blue lava vents. Survive the scan (Space), then press Space again to enter the code!";
         }
     } else if (currentMap === 'marketplace') {
         if (inventory.sun_hat || inventory.melon) {
@@ -293,6 +396,9 @@ function updateObjective() {
     } else if (inventory.climbers_gear) {
         objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Equipment Acquired</span>';
         instructionEl.innerText = "Move to the rock face and press SPACE to climb!";
+        if (!inventory.lorebook) {
+            instructionEl.innerText += " (Optional: Get the Lorebook from the red house)";
+        }
     } else {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Purchase Climbers Gear</span>';
         instructionEl.innerText = "Find the equipment shop at Gunung Parang.";
@@ -401,6 +507,10 @@ const maps = {
             {
                 x: 1200, y: 0, w: 400, h: 600, // Rock face area
                 type: 'climb_trigger'
+            },
+            {
+                x: 1024, y: 1152, w: 48, h: 96, // Yellow Door
+                type: 'lore_shop'
             }
         ]
     },
@@ -472,12 +582,12 @@ const maps = {
     lake_toba: {
         img: lakeTobaImg,
         name: 'LAKE TOBA BOAT TRIP',
-        size: 800,
-        spawn: { x: 400, y: 400 },
+        size: 8000,
+        spawn: { x: 4000, y: 4000 },
         checkCollision: (x, y) => {
-            // Only allow movement within the orange bounds
-            // Roughly 150 to 700 horizontally, 60 to 600 vertically on 800x800 map
-            if (x < 150 || x > 700 || y < 60 || y > 600) return true;
+            // Restrict movement to within the orange square on the map
+            // Bounds calculated from 300x300 image (Scale: 8000/300)
+            if (x < 1467 || x > 7067 || y < 533 || y > 6027) return true;
             return false;
         },
         interactables: []
@@ -489,11 +599,25 @@ window.addEventListener('keydown', e => {
     keys[key] = true;
 
     // Priority 1: Dialogue Handling (Ensures we never get stuck)
-    if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ')) {
+    if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ' || key === 'enter')) {
         closeDialogue();
         if (droneDead && (key === 'y' || key === ' ')) {
             resetDrone();
         }
+        return;
+    }
+
+    if (key === 'tab') {
+        e.preventDefault();
+        if (inventory.lorebook) {
+            if (isLorebookOpen) closeLorebook();
+            else openLorebook();
+        }
+        return;
+    }
+
+    if (isLorebookOpen && (key === 'escape' || key === 'tab')) {
+        closeLorebook();
         return;
     }
 
@@ -521,12 +645,13 @@ window.addEventListener('keydown', e => {
         return;
     }
 
-    // Interact with O key
-    if (key === 'o' && !isDialogueOpen && !isShopOpen && !isClimbing) {
+    // Interact with O key or Enter
+    if ((key === 'o' || key === 'enter') && !isDialogueOpen && !isShopOpen && !isClimbing && !isLorebookOpen) {
         checkInteraction();
-    } else if (isShopOpen && key === 'escape') {
+    } else if ((isShopOpen || isLorebookOpen) && key === 'escape') {
         closeShop();
-    } else if (key === ' ' && !isDialogueOpen && !isShopOpen) {
+        closeLorebook();
+    } else if (key === ' ' && !isDialogueOpen && !isShopOpen && !isLorebookOpen) {
         if (isClimbing) {
             handleClimbInput();
         } else {
@@ -571,15 +696,16 @@ function checkFinalExit() {
 
 function handleDroneInput(key) {
     if (photoMode) {
-        const expected = currentPhotoTarget.sequence[currentPhotoInput.length];
+        const expected = currentPhotoTarget.sequence[currentPhotoIndex];
         if (key === expected) {
-            currentPhotoInput += key;
+            currentPhotoIndex++;
             updateArrowDisplay();
-            if (currentPhotoInput === currentPhotoTarget.sequence.join('')) {
+            if (currentPhotoIndex === currentPhotoTarget.sequence.length) {
                 currentPhotoTarget.completed = true;
                 photoMode = false;
                 photoSuccessCount++;
                 document.getElementById('photo-prompt').style.display = 'none';
+                updateObjective();
                 if (photoSuccessCount >= LAVA_TARGETS.length) {
                     researchComplete = true;
                     updateObjective();
@@ -587,7 +713,7 @@ function handleDroneInput(key) {
                 }
             }
         } else if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
-            currentPhotoInput = "";
+            currentPhotoIndex = 0;
             updateArrowDisplay();
         }
     } else if (key === ' ' && !dodgeMode) {
@@ -601,7 +727,7 @@ function handleDroneInput(key) {
                     // Already scanned, just restart photo mode
                     photoMode = true;
                     currentPhotoTarget = target;
-                    currentPhotoInput = "";
+                    currentPhotoIndex = 0;
                     document.getElementById('photo-prompt').style.display = 'block';
                     updateArrowDisplay();
                 } else {
@@ -625,7 +751,7 @@ function resetDrone() {
     dodgeMode = false;
     droneProjectiles = [];
     droneExplosions = [];
-    currentPhotoInput = "";
+    currentPhotoIndex = 0;
     document.getElementById('drone-ui').style.display = 'block';
     document.getElementById('photo-prompt').style.display = 'none';
     closeDialogue(); // Unpause the game Loop
@@ -641,7 +767,7 @@ function updateArrowDisplay() {
     let html = "";
     const symbols = { 'arrowup': '↑', 'arrowdown': '↓', 'arrowleft': '←', 'arrowright': '→' };
     for (let i = 0; i < seq.length; i++) {
-        const color = i < currentPhotoInput.length ? '#4CAF50' : '#fff';
+        const color = i < currentPhotoIndex ? '#4CAF50' : '#fff';
         html += `<span style="color: ${color}">${symbols[seq[i]]}</span>`;
     }
     sequenceEl.innerHTML = html;
@@ -715,6 +841,8 @@ function checkInteraction() {
                 openSouvenirShop();
             } else if (obj.type === 'sword_shop') {
                 openSwordShop();
+            } else if (obj.type === 'lore_shop') {
+                openLoreShop();
             } else {
                 showDialogue(obj.text);
             }
@@ -841,10 +969,43 @@ function update() {
     }
 
     if (canMove) {
-        if (keys['w']) { moveY -= SPEED; playerFacing = 'up'; }
-        if (keys['s']) { moveY += SPEED; playerFacing = 'down'; }
-        if (keys['a']) { moveX -= SPEED; playerFacing = 'left'; }
-        if (keys['d']) { moveX += SPEED; playerFacing = 'right'; }
+        if (currentMap === 'lake_toba') {
+            const acc = 0.15;
+            const friction = 0.985;
+            const maxBoatSpeed = 8;
+
+            if (keys['w']) boatVY -= acc;
+            if (keys['s']) boatVY += acc;
+            if (keys['a']) boatVX -= acc;
+            if (keys['d']) boatVX += acc;
+
+            boatVX *= friction;
+            boatVY *= friction;
+
+            // Cap speed
+            const speed = Math.sqrt(boatVX * boatVX + boatVY * boatVY);
+            if (speed > maxBoatSpeed) {
+                boatVX = (boatVX / speed) * maxBoatSpeed;
+                boatVY = (boatVY / speed) * maxBoatSpeed;
+            }
+
+            if (Math.abs(boatVX) < 0.01) boatVX = 0;
+            if (Math.abs(boatVY) < 0.01) boatVY = 0;
+
+            moveX = boatVX;
+            moveY = boatVY;
+
+            if (moveY < -0.5) playerFacing = 'up';
+            else if (moveY > 0.5) playerFacing = 'down';
+            else if (moveX < -0.5) playerFacing = 'left';
+            else if (moveX > 0.5) playerFacing = 'right';
+
+        } else {
+            if (keys['w']) { moveY -= SPEED; playerFacing = 'up'; }
+            if (keys['s']) { moveY += SPEED; playerFacing = 'down'; }
+            if (keys['a']) { moveX -= SPEED; playerFacing = 'left'; }
+            if (keys['d']) { moveX += SPEED; playerFacing = 'right'; }
+        }
     }
 
     // Stamina Logic for Lake Toba
@@ -868,13 +1029,14 @@ function update() {
         fill.style.background = isExhausted ? '#f44336' : (stamina < 30 ? '#ff9800' : '#4caf50');
 
         // Lake Waves Logic
-        if (Math.random() < 0.02) { // Spawn wave
+        // Lake Waves Logic: Spawn around the player in the massive lake
+        if (Math.random() < 0.04) {
             lakeWaves.push({
-                x: 350 + Math.random() * 300,
-                y: 100 + Math.random() * 450,
+                x: playerX + (Math.random() - 0.5) * 800,
+                y: playerY + (Math.random() - 0.5) * 800,
                 radius: 5,
-                maxRadius: 40 + Math.random() * 30,
-                life: 60
+                maxRadius: 60 + Math.random() * 40,
+                life: 90
             });
         }
 
@@ -891,6 +1053,9 @@ function update() {
                 if (boatPausedTimer === 0) {
                     boatPausedTimer = 60; // 1 second pause
                     stamina = Math.max(0, stamina - 20);
+                    // Impact kills momentum
+                    boatVX *= 0.2;
+                    boatVY *= 0.2;
                 }
             }
         });
@@ -1039,11 +1204,11 @@ function draw() {
                 if (obj.type === 'climb_trigger' && !inventory.climbers_gear) return;
 
                 hint.style.display = 'flex';
-                hint.innerText = obj.type === 'climb_trigger' ? 'SPACE' : 'O';
-                hint.style.width = obj.type === 'climb_trigger' ? '60px' : '30px';
-                hint.style.borderRadius = obj.type === 'climb_trigger' ? '8px' : '50%';
+                hint.innerText = (obj.type === 'climb_trigger') ? 'SPACE' : ((obj.type === 'lore_shop') ? 'ENTER' : 'O');
+                hint.style.width = (obj.type === 'climb_trigger') ? '60px' : ((obj.type === 'lore_shop') ? '60px' : '30px');
+                hint.style.borderRadius = (obj.type === 'climb_trigger' || obj.type === 'lore_shop') ? '8px' : '50%';
                 hint.style.position = 'absolute';
-                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - (obj.type === 'climb_trigger' ? 30 : 15)) + 'px';
+                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - ((obj.type === 'climb_trigger' || obj.type === 'lore_shop') ? 30 : 15)) + 'px';
                 hint.style.top = (camY + playerY - 40) + 'px';
                 showingHint = true;
             }
@@ -1098,12 +1263,16 @@ function draw() {
             if (playerFacing === 'left') boatImg = boatLeftImg;
             if (playerFacing === 'right') boatImg = boatRightImg;
 
-            // Adjust size to make it look boat-shaped
+            // Adjust size to make it look boat-shaped (increased by factor of 3)
             const isHorizontal = playerFacing === 'left' || playerFacing === 'right';
-            const bW = isHorizontal ? 64 : 32;
-            const bH = isHorizontal ? 32 : 64;
+            const bW = isHorizontal ? 192 : 96;
+            const bH = isHorizontal ? 96 : 192;
 
-            ctx.drawImage(boatImg, camX + playerX - (isHorizontal ? 16 : 0), camY + playerY - (isHorizontal ? 0 : 16), bW, bH);
+            // Offset to keep the larger boat centered on the 32x32 logical hit box
+            const offX = (PLAYER_SIZE - bW) / 2;
+            const offY = (PLAYER_SIZE - bH) / 2;
+
+            ctx.drawImage(boatImg, camX + playerX + offX, camY + playerY + offY, bW, bH);
         } else {
             ctx.fillStyle = '#00d2ff';
             ctx.strokeStyle = '#fff';
@@ -1241,6 +1410,12 @@ function updateDrone() {
         droneHeat = Math.max(0, droneHeat - 0.2);
     }
 
+    if (droneHeat >= 100) {
+        droneHeat = 100;
+        droneDead = true;
+        showDialogue("The drone's circuits melted from the extreme volcanic heat! (Press Space or Y to retry)");
+    }
+
     document.getElementById('heat-fill').style.height = droneHeat + '%';
 
     // Aggressive Completion Check (Stick to true once hit)
@@ -1351,11 +1526,9 @@ function updateDrone() {
 
         if (dodgeTimer <= 0) {
             dodgeMode = false;
-            photoMode = true;
             currentPhotoTarget.scanned = true; // Mark as scanned so red indicator disappears
-            currentPhotoInput = "";
-            document.getElementById('photo-prompt').style.display = 'block';
-            updateArrowDisplay();
+            currentPhotoIndex = 0;
+            // No longer automatically starting photoMode
         }
     }
 
