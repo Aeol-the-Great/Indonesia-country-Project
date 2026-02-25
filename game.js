@@ -1,6 +1,7 @@
-const canvas = document.createElement('canvas');
+﻿const canvas = document.createElement('canvas');
 canvas.width = 600;
 canvas.height = 600;
+canvas.style.imageRendering = 'pixelated';
 const container = document.getElementById('game-container');
 container.innerHTML = '';
 container.appendChild(canvas);
@@ -103,21 +104,20 @@ let inventory = {
     sword: false,
     lorebook: false
 };
-let budget = 1000;
-
-let isLorebookOpen = false;
+let budget = 1000000;
+let isReturning = false;
+let isCreditsActive = false;
 const loreEntries = {
-    aircraft: "A tight aircraft cabin. The seats are red and the aisle is blue. It smells like recycled air and anticipation.",
+    aircraft: "This is an Airbus NEO320 jet, flying on AirAsia Airlines departing at 11:30 AM! please enjoy the ride!",
     airport: "Soekarno-Hatta International Airport. The gateway to the archipelago.",
     destination: "Gunung Parang. A massive andesite intrusion. The steel rungs look daunting but the view from the hanging hotel is worth it.",
     borobudur: "The world's largest Buddhist temple. A masterpiece of stone and devotion.",
     marketplace: "Ubud Art Market. A kaleidoscope of colors, crafts, and culture.",
     kawah: "Ijen Crater. Famous for its electric blue flames and the sulfur miners' perseverance.",
-    lake_toba: "The largest volcanic lake in the world. Formed by a supervolcanic eruption that changed the world."
+    lake_toba: "The largest volcanic lake in the world. Formed by a supervolcanic eruption that changed the world.",
+    via_ferrata: "Gunung Parang. A massive andesite intrusion. The steel rungs look daunting but the view is worth it."
 };
 
-let transitionActive = false;
-let transitionTimer = 0;
 const lorebookUI = document.createElement('div');
 lorebookUI.id = 'lorebook-ui';
 lorebookUI.style.cssText = `
@@ -190,7 +190,7 @@ window.updateLoreShopUI = function () {
                 ${inventory.lorebook
             ? '<span style="color: #4CAF50; font-weight: bold;">OWNED</span>'
             : (budget >= 100
-                ? '<button onclick="buyLorebook()" style="background: #ff9800; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">$100</button>'
+                ? '<button onclick="buyLorebook()" style="background: #ff9800; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">FREE</button>'
                 : '<span style="color: #f44336; font-size: 12px;">INSUFFICIENT FUNDS</span>')}
             </div>
         </div>
@@ -208,11 +208,17 @@ window.buyLorebook = function () {
     }
 }
 
-function triggerTransition(nextMap, nextX, nextY) {
+let transitionActive = false;
+let transitionTimer = 0;
+let transitionLabel = '';
+let pendingTransition = null;
+
+function triggerTransition(nextMap, nextX, nextY, label = "Three Days Later...") {
     if (transitionActive) return;
     transitionActive = true;
-    transitionTimer = 120; // 2 seconds at 60fps
-    pendingTransition = { nextMap, nextX, nextY };
+    transitionTimer = 120;
+    transitionLabel = label;
+    pendingTransition = { nextMap, nextX, nextY, startTimer: 120 };
 }
 
 // Drone Minigame State
@@ -388,27 +394,36 @@ function updateObjective() {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Get to your seat</span>';
         instructionEl.innerText = "Get to your seat. The flight to Indonesia will begin shortly.";
     } else if (currentMap === 'airport') {
-        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Enter the Gate</span>';
+        objectiveEl.innerHTML = '<span style="color: #4CAF50;">○ Objective: Step inside the gate to travel!</span>';
         instructionEl.innerText = "Enter the gate doors to start your journey!";
+    } else if (currentMap === 'hotel') {
+        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Get some rest</span>';
+        instructionEl.innerText = "Go to the bed and press F to rest before the big climb.";
     } else if (currentMap === 'lake_toba') {
-        objectiveEl.innerHTML = '<span style="color: #00d2ff;">○ Objective: Enjoy Lake Toba</span>';
-        instructionEl.innerText = "You're on a boat! Relax and enjoy the view of the worlds largest volcanic lake.";
-    } else if (inventory.climbers_gear) {
-        objectiveEl.innerHTML = '<span style="color: #4CAF50;">✓ Objective: Equipment Acquired</span>';
-        instructionEl.innerText = "Move to the rock face and press SPACE to climb!";
-        if (!inventory.lorebook) {
-            instructionEl.innerText += " (Optional: Get the Lorebook from the red house)";
+        if (isReturning) {
+            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Head to the Docks</span>';
+            instructionEl.innerText = "Walk to the center docks and press F to head back to the hotel.";
+        } else {
+            objectiveEl.innerHTML = '<span style="color: #00d2ff;">○ Objective: Enjoy Lake Toba</span>';
+            instructionEl.innerText = "You're on a boat! Use WASD to explore. Find the docks to finish your trip.";
+        }
+    } else if (currentMap === 'via_ferrata') {
+        if (inventory.climbers_gear) {
+            objectiveEl.innerHTML = '<span style="color: #4CAF50;">○ Objective: Climb the Peak</span>';
+            instructionEl.innerText = "Move to the rock face and press SPACE to climb!";
+        } else {
+            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Purchase Climbers Gear</span>';
+            instructionEl.innerText = "Find the equipment shop at Gunung Parang.";
         }
     } else {
-        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Purchase Climbers Gear</span>';
-        instructionEl.innerText = "Find the equipment shop at Gunung Parang.";
+        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Explore the Archipelago</span>';
+        instructionEl.innerText = "Discover the wonders of Indonesia!";
     }
 }
 
 // Update UI setup to include objective and shop trigger hint
 const mapImg = new Image();
 const airportImg = new Image();
-const destinationImg = new Image();
 const ropeImg = new Image();
 const climbImg = new Image();
 const splashImg = new Image();
@@ -419,7 +434,6 @@ const melonImg = new Image();
 const kawahImg = new Image();
 mapImg.src = 'pixil-frame-0 (3).png';
 airportImg.src = 'pixil-frame-0 (7).png';
-destinationImg.src = 'pixil-frame-1.png';
 ropeImg.src = 'Rope.png';
 climbImg.src = 'pixil-frame-0 (1) (2).png';
 splashImg.src = 'pixil-frame-0 (11).png';
@@ -428,6 +442,12 @@ marketplaceImg.src = 'pixilart-drawing (6).png';
 strawHatImg.src = 'pixil-frame-0 (22).png';
 melonImg.src = 'pixilart-drawing (7).png';
 kawahImg.src = 'pixil-frame-0 (15).png';
+const hotelImg = new Image();
+hotelImg.src = 'pixil-frame-0 (35).png';
+const viaFerrataImg = new Image();
+viaFerrataImg.src = 'pixil-frame-1.png';
+const giftShopImg = new Image();
+giftShopImg.src = 'pixil-frame-0 (34).png';
 const lakeTobaImg = new Image();
 lakeTobaImg.src = 'pixil-frame-0 (26).png';
 const swordImg = new Image();
@@ -473,46 +493,51 @@ const maps = {
         collisions: [
             { x: 0, y: 620, w: 800, h: 180 },
             { x: 0, y: 0, w: 800, h: 135 }
+        ],
+        interactables: [
+            { x: 350, y: 120, w: 100, h: 60, type: 'aircraft_stairs' }
         ]
     },
-    destination: {
-        img: destinationImg,
+    hotel: {
+        img: hotelImg,
+        name: 'HOTEL CHECK-IN',
+        size: 800,
+        spawn: { x: 400, y: 700 },
+        collisions: [
+            { x: 0, y: 0, w: 800, h: 100 }, // Top wall
+            { x: 0, y: 0, w: 40, h: 800 },  // Left wall
+            { x: 760, y: 0, w: 40, h: 800 }, // Right wall
+            { x: 0, y: 780, w: 340, h: 20 }, // Bottom wall left
+            { x: 460, y: 780, w: 340, h: 20 }, // Bottom wall right
+            // Furniture
+            { x: 40, y: 100, w: 320, h: 200 }, // Bed & Nightstand
+            { x: 720, y: 100, w: 40, h: 220 },  // TV Table
+            { x: 520, y: 420, w: 160, h: 160 }  // Round Table
+        ],
+        interactables: [
+            { x: 40, y: 100, w: 320, h: 200, text: "A comfy bed. Time to rest?", type: 'bed' }
+        ]
+    },
+    via_ferrata: {
+        img: viaFerrataImg,
         name: 'GUNUNG PARANG VIA FERRATA',
         size: 1600,
         spawn: { x: 100, y: 1380 },
         collisions: [
-            // Four squares (Equipment boxes) - individually defined
-            { x: 128, y: 160, w: 144, h: 112 }, // Box 1
-            { x: 128, y: 304, w: 144, h: 112 }, // Box 2
-            { x: 128, y: 448, w: 144, h: 112 }, // Box 3
-            { x: 128, y: 592, w: 144, h: 112 }, // Box 4
-            // House
+            { x: 128, y: 160, w: 144, h: 112 }, { x: 128, y: 304, w: 144, h: 112 },
+            { x: 128, y: 448, w: 144, h: 112 }, { x: 128, y: 592, w: 144, h: 112 },
             { x: 816, y: 784, w: 464, h: 512 },
-            // Rock Face (Top Right) - more granular stair-step approach
-            { x: 1136, y: 0, w: 464, h: 112 },
-            { x: 1168, y: 112, w: 432, h: 112 },
-            { x: 1216, y: 224, w: 384, h: 112 },
-            { x: 1264, y: 336, w: 336, h: 112 },
-            { x: 1328, y: 448, w: 272, h: 112 },
-            { x: 1408, y: 560, w: 192, h: 112 },
-            { x: 1488, y: 672, w: 112, h: 112 },
-            { x: 1552, y: 784, w: 48, h: 80 }
+            { x: 1136, y: 0, w: 464, h: 112 }, { x: 1168, y: 112, w: 432, h: 112 },
+            { x: 1216, y: 224, w: 384, h: 112 }, { x: 1264, y: 336, w: 336, h: 112 },
+            { x: 1328, y: 448, w: 272, h: 112 }, { x: 1408, y: 560, w: 192, h: 112 },
+            { x: 1488, y: 672, w: 112, h: 112 }, { x: 1552, y: 784, w: 48, h: 80 }
         ],
         interactables: [
-            {
-                x: 128, y: 160, w: 144, h: 544,
-                text: "A hanging hotel that is placed on the top of a massive andesite intrusion\nTo get there you climb on steel rungs like a ladder\nThis place is the pinnacle and reason for my hatred of tourism agency apps.",
-                type: 'shop'
-            },
-            {
-                x: 1200, y: 0, w: 400, h: 600, // Rock face area
-                type: 'climb_trigger'
-            },
-            {
-                x: 1024, y: 1152, w: 48, h: 96, // Yellow Door
-                type: 'lore_shop'
-            }
-        ]
+            { x: 128, y: 160, w: 144, h: 544, text: "A hanging hotel on the peak.", type: 'shop' },
+            { x: 1200, y: 0, w: 400, h: 600, type: 'climb_trigger' },
+            { x: 1024, y: 1152, w: 48, h: 96, type: 'lore_shop' }
+        ],
+        exitRect: { x: 1024, y: 1152, w: 48, h: 96 } // Lore shop door
     },
     borobudur: {
         img: borobudurImg,
@@ -577,7 +602,6 @@ const maps = {
             if (y > 720 && x > 350 && x < 450) return false;
             return true;
         },
-        interactables: []
     },
     lake_toba: {
         img: lakeTobaImg,
@@ -590,7 +614,29 @@ const maps = {
             if (x < 1467 || x > 7067 || y < 533 || y > 6027) return true;
             return false;
         },
-        interactables: []
+        interactables: [
+            { x: 4000, y: 3900, w: 200, h: 100, text: "Return to the Mainland?", type: 'docks' }
+        ]
+    },
+    gift_shop: {
+        img: giftShopImg,
+        name: 'GUNUNG PARANG GIFT SHOP',
+        size: 600,
+        spawn: { x: 300, y: 500 },
+        collisions: [
+            { x: 60, y: 90, w: 210, h: 108 }, // Desk
+            { x: 0, y: 0, w: 600, h: 40 }, // Top wall
+            { x: 0, y: 0, w: 40, h: 600 },  // Left wall
+            { x: 550, y: 0, w: 50, h: 600 }, // Right wall
+            { x: 0, y: 580, w: 600, h: 20 }  // Bottom wall
+        ],
+        exitRect: { x: 250, y: 560, w: 100, h: 40 },
+        interactables: [
+            {
+                x: 250, y: 50, w: 100, h: 100,
+                type: 'lore_shop'
+            }
+        ]
     }
 };
 
@@ -598,7 +644,14 @@ window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     keys[key] = true;
 
-    // Priority 1: Dialogue Handling (Ensures we never get stuck)
+    // Priority 1: Cutscene/Dialogue Handling
+    if (splashActive && splashTimer > 1000 && key === ' ') {
+        splashActive = false;
+        canvas.width = 600;
+        triggerTransition('borobudur', maps.borobudur.spawn.x, maps.borobudur.spawn.y, "Journey to the Temple...");
+        return;
+    }
+
     if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ' || key === 'enter')) {
         closeDialogue();
         if (droneDead && (key === 'y' || key === ' ')) {
@@ -657,17 +710,94 @@ window.addEventListener('keydown', e => {
         } else {
             checkClimbStart();
         }
-    } else if (key === 'f' && !isDialogueOpen && !isShopOpen) {
-        if (currentMap === 'borobudur') {
+    } else if (key === 'f' && !isDialogueOpen && !isShopOpen && !isClimbing && !isLorebookOpen) {
+        if (currentMap === 'hotel') {
+            checkBedInteraction();
+        } else if (currentMap === 'borobudur') {
             checkPortalTransition();
         } else if (currentMap === 'marketplace') {
             checkFinalExit();
+        } else if (currentMap === 'lake_toba') {
+            checkLakeTobaExit();
+        } else if (currentMap === 'airport' && isReturning) {
+            checkAirportFinal();
         }
     } else if (key === 'f3') {
         debugMode = !debugMode;
-        console.log('Debug mode: ' + debugMode);
+        if (debugMode) openDebugMenu();
+        else closeDebugMenu();
     }
 });
+
+const debugMenu = document.createElement('div');
+debugMenu.id = 'debug-menu';
+debugMenu.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #00ff00;
+    padding: 20px;
+    color: #00ff00;
+    font-family: monospace;
+    z-index: 5000;
+    display: none;
+`;
+container.appendChild(debugMenu);
+
+const debugOverlay = document.createElement('div');
+debugOverlay.style.cssText = `
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.8);
+    color: #0f0;
+    font-family: monospace;
+    padding: 10px;
+    font-size: 12px;
+    border: 1px solid #0f0;
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+`;
+container.appendChild(debugOverlay);
+
+function updateDebugOverlay() {
+    if (!debugMode) {
+        debugOverlay.style.display = 'none';
+        return;
+    }
+    debugOverlay.style.display = 'block';
+    const activeMap = maps[currentMap];
+    debugOverlay.innerHTML = `
+        MAP: ${currentMap} (${activeMap ? activeMap.name : 'NULL'})<br>
+        POS: ${Math.round(playerX)}, ${Math.round(playerY)}<br>
+        STATE: TR:${transitionActive} SL:${splashActive} CL:${isClimbing} DR:${isDroneActive}<br>
+        PENDING: ${pendingStoryMap || 'None'}<br>
+        IMAGES: ${loadedCount}/${images.length}
+    `;
+}
+
+function openDebugMenu() {
+    debugMenu.style.display = 'block';
+    let html = '<h3>DEBUG TELEPORT</h3>';
+    Object.keys(maps).forEach(mapId => {
+        html += `<button onclick="teleportTo('${mapId}')" style="display:block; width:100%; margin:5px 0; background:#222; color:#0f0; border:1px solid #0f0; cursor:pointer;">${mapId.toUpperCase()}</button>`;
+    });
+    debugMenu.innerHTML = html;
+}
+
+function closeDebugMenu() {
+    debugMenu.style.display = 'none';
+}
+
+window.teleportTo = function (mapId) {
+    const map = maps[mapId];
+    if (!map) return;
+    // Debug teleport always bypasses the Hub-interceptor
+    triggerTransition(mapId, map.spawn.x, map.spawn.y, `DEBUG TELEPORT: ${mapId.toUpperCase()}`, true);
+};
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
 function checkPortalTransition() {
@@ -692,6 +822,199 @@ function checkFinalExit() {
     if (distance < 100) {
         triggerTransition('kawah', maps.kawah.spawn.x, maps.kawah.spawn.y);
     }
+}
+
+function checkBedInteraction() {
+    if (currentMap !== 'hotel') return;
+    const map = maps.hotel;
+    map.interactables.forEach(obj => {
+        if (obj.type === 'bed') {
+            const playerCenterX = playerX + PLAYER_SIZE / 2;
+            const playerCenterY = playerY + PLAYER_SIZE / 2;
+            const targetCenterX = obj.x + obj.w / 2;
+            const targetCenterY = obj.y + obj.h / 2;
+
+            const dx = playerCenterX - targetCenterX;
+            const dy = playerCenterY - targetCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Using 400 for maximum reliability with the large bed sprite
+            if (distance < 400) {
+                if (isReturning) {
+                    triggerTransition('airport', maps.airport.spawn.x, maps.airport.spawn.y, "Journey Home Begins...");
+                } else {
+                    triggerTransition('via_ferrata', maps.via_ferrata.spawn.x, maps.via_ferrata.spawn.y, "Three Restful Days Later...");
+                }
+            }
+        }
+    });
+}
+
+function checkLakeTobaExit() {
+    if (currentMap !== 'lake_toba') return;
+    const map = maps.lake_toba;
+    map.interactables.forEach(obj => {
+        if (obj.type === 'docks') {
+            const dx = playerX - obj.x;
+            const dy = playerY - obj.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 300) {
+                isReturning = true;
+                triggerTransition('hotel', maps.hotel.spawn.x, maps.hotel.spawn.y, "Heading to the Hotel...");
+            }
+        }
+    });
+}
+
+function checkAirportFinal() {
+    if (currentMap !== 'airport' || !isReturning) return;
+    const map = maps.airport;
+    map.interactables.forEach(obj => {
+        if (obj.type === 'aircraft_stairs') {
+            const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
+            const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 120) {
+                showCredits();
+            }
+        }
+    });
+}
+
+const creditsOverlay = document.createElement('div');
+creditsOverlay.id = 'credits-overlay';
+creditsOverlay.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    color: #fff;
+    z-index: 10000;
+    display: none;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+`;
+container.appendChild(creditsOverlay);
+
+function showCredits() {
+    isCreditsActive = true;
+    creditsOverlay.style.display = 'block';
+
+    let geminiRoles = "";
+    for (let i = 0; i < 50; i++) {
+        geminiRoles += `
+            <p>Lead Engine Architect: Google Gemini</p>
+            <p>Senior Systems Coder: Google Gemini</p>
+            <p>Junior Debugger: Google Gemini</p>
+            <p>Cloud Infrastructure Specialist: Google Gemini</p>
+            <p>AI Logic Processor: Google Gemini</p>
+            <p>Collision Detection Engineer: Google Gemini</p>
+            <p>Minigame Mechanics Unit: Google Gemini</p>
+            <br>
+        `;
+    }
+
+    creditsOverlay.innerHTML = `
+        <div id="credits-content" style="position: absolute; width: 100%; top: 100%;">
+            <div style="padding: 100px 20px;">
+                <h1 style="color: #00d2ff; margin-bottom: 50px;">— THE CREDITS —</h1>
+                <p style="font-size: 14px; color: #888;">(courtesy of google gemini, not antigravity gemini XD)</p>
+                
+                <h2 style="margin-top: 50px; color: #ff9800;">EXECUTIVE MANAGEMENT & VISIONARY LEADERSHIP</h2>
+                <p>Chief Executive Officer (CEO): Ai-Une I.</p>
+                <p>Chief Operations Officer: Ai-Une I.</p>
+                <p>Head of Global Strategy: Ai-Une I.</p>
+                <p>Director of Creative Synergy: Ai-Une I.</p>
+                <p>Vice President of Pixel Perfection: Ai-Une I.</p>
+                <p>Senior Regional Manager (Southeast Asia): Ai-Une I.</p>
+
+                <h2 style="margin-top: 50px; color: #ff9800;">LEAD NARRATIVE & STORYTELLING DIVISION</h2>
+                <p>Lead Scriptwriter: Knox B.</p>
+                <p>Story Architect: Knox B.</p>
+                <p>Dialogue Specialist (Zoe & Dash Dialect): Knox B.</p>
+                <p>Historical Accuracy Consultant (Borobudur Expert): Knox B.</p>
+                <p>Chief Motivation Officer for Master Shifu/Oogway: Knox B.</p>
+                <p>Narrative Continuity Supervisor: Knox B.</p>
+                <p>Senior Lore Master: Knox B.</p>
+
+                <h2 style="margin-top: 50px; color: #ff9800;">THE PROGRAMMING LEGION</h2>
+                ${geminiRoles}
+
+                <h2 style="margin-top: 50px; color: #ff9800;">ART, VFX, & WORLD BUILDING</h2>
+                <p>Art Director: Ai-Une I.</p>
+                <p>Lead Pixel Artist: Ai-Une I.</p>
+                <p>Environment Designer (Jakarta Airport Tilemaps): Ai-Une I.</p>
+                <p>Atmospheric Lighting Specialist (Ijen Blue Fire): Ai-Une I.</p>
+                <p>Sprite Animation Lead: Ai-Une I.</p>
+                <p>UI/UX Aesthetic Consultant: Ai-Une I.</p>
+                <p>Texture & Shading Coordinator: Ai-Une I.</p>
+
+                <h2 style="margin-top: 50px; color: #ff9800;">LOCALIZATION & GLOBAL OUTREACH</h2>
+                <p>Thai Cultural Liaison: Ai-Une I.</p>
+                <p>Indonesian Geography Consultant: Ai-Une I.</p>
+                <p>Translation Lead (English to Pixel): Ai-Une I.</p>
+                <p>Global Distribution Manager: Ai-Une I.</p>
+                <p>Regional Marketing Executive: Ai-Une I.</p>
+
+                <h2 style="margin-top: 50px; color: #ff9800;">QUALITY ASSURANCE & TECHNICAL OPERATIONS</h2>
+                <p>Lead Game Tester: Ai-Une I.</p>
+                <p>Performance Optimization: Ai-Une I.</p>
+                <p>Compatibility Analyst: Ai-Une I.</p>
+                <br>
+                <p>Specialized "Melon Damage" Analyst: Ai-Une I.</p>
+                <p>Caffeine Management: Ai-Une I.</p>
+
+                <h2 style="margin-top: 80px; color: #00d2ff;">SPECIAL THANKS</h2>
+                <p>Zoe Zenith: For the aesthetic vibes.</p>
+                <p>Dash Drift: For making us research tectonic plates. +2</p>
+                <p>Mrs. Ernst: For not making us do another slideshow.</p>
+                
+                <div style="margin-top: 150px; font-size: 24px;">THANK YOU FOR PLAYING!</div>
+            </div>
+        </div>
+        <button id="skip-credits" style="
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            z-index: 11000;
+        ">SKIP >> </button>
+    `;
+
+    document.getElementById('skip-credits').onclick = () => {
+        isCreditsActive = false;
+        location.reload();
+    };
+
+    const content = document.getElementById('credits-content');
+    let scrollPos = 100;
+    function scroll() {
+        if (!isCreditsActive) return;
+        scrollPos -= 0.5;
+        content.style.top = scrollPos + '%';
+        if (scrollPos > -1000) { // Keep scrolling until way past
+            requestAnimationFrame(scroll);
+        } else {
+            // Option to restart or just stay at black
+            setTimeout(() => location.reload(), 5000);
+        }
+    }
+    scroll();
 }
 
 function handleDroneInput(key) {
@@ -765,7 +1088,7 @@ function updateArrowDisplay() {
     const sequenceEl = document.getElementById('arrow-sequence');
     const seq = currentPhotoTarget.sequence;
     let html = "";
-    const symbols = { 'arrowup': '↑', 'arrowdown': '↓', 'arrowleft': '←', 'arrowright': '→' };
+    const symbols = { 'arrowup': 'â†‘', 'arrowdown': 'â†“', 'arrowleft': 'â†', 'arrowright': 'â†’' };
     for (let i = 0; i < seq.length; i++) {
         const color = i < currentPhotoIndex ? '#4CAF50' : '#fff';
         html += `<span style="color: ${color}">${symbols[seq[i]]}</span>`;
@@ -774,9 +1097,10 @@ function updateArrowDisplay() {
 }
 
 function checkClimbStart() {
-    if (currentMap !== 'destination' || !inventory.climbers_gear) return;
+    if (currentMap !== 'via_ferrata' || !inventory.climbers_gear) return;
 
-    const map = maps.destination;
+    const map = maps.via_ferrata;
+    if (!map.interactables) return;
     map.interactables.forEach(obj => {
         if (obj.type === 'climb_trigger') {
             const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
@@ -816,13 +1140,13 @@ function handleClimbInput() {
 
 function finishClimb() {
     isClimbing = false;
-    document.getElementById('map-name').textContent = maps.destination.name;
-
-    // Start Cutscene
+    // Summit Cutscene Setup - Influencer Style!
+    canvas.width = 900;
     splashActive = true;
-    splashTimer = 360; // Total duration: 6 seconds
+    splashTimer = 999999; // Indefinite until SPACE
     splashAlpha = 0;
     splashPhase = 'image';
+    document.getElementById('map-name').textContent = "SUMMIT VIEW: PARANG PEAK";
 }
 
 function checkInteraction() {
@@ -866,7 +1190,8 @@ function closeDialogue() {
 function update() {
     if (transitionActive) {
         transitionTimer--;
-        if (transitionTimer === 60) { // Halfway: screen is black, change map
+        // Swap map at exactly the halfway point of whatever timer was chosen
+        if (transitionTimer === Math.floor(pendingTransition.startTimer / 2)) {
             currentMap = pendingTransition.nextMap;
             playerX = pendingTransition.nextX;
             playerY = pendingTransition.nextY;
@@ -911,12 +1236,21 @@ function update() {
     } else {
         // Special case: Allow drone and stamina updates during dialogue for extraction/boat
         if (isDroneActive && !droneDead) updateDrone();
-        if (currentMap === 'lake_toba') updateStaminaAndWaves(0, 0); // Helper or similar
+        if (currentMap === 'lake_toba') {
+            // Placeholder/Logic move for waves during dialogue
+            // If we need waves moving during dialogue, we keep the loop running
+        }
     }
 
     if (splashActive) {
-        splashTimer--;
+        if (splashTimer > 1000) {
+            // Indefinite Influencer Phase
+            splashPhase = 'image';
+            splashAlpha = Math.min(1, splashAlpha + 0.02);
+            return;
+        }
 
+        splashTimer--;
         // Image Phase (3 seconds = 180 frames)
         if (splashTimer > 180) {
             splashPhase = 'image';
@@ -1099,18 +1433,31 @@ function update() {
         const exit = maps.aircraft.exitRect;
         if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
             playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
-            triggerTransition('airport', maps.airport.spawn.x, maps.airport.spawn.y);
+            triggerTransition('airport', maps.airport.spawn.x, maps.airport.spawn.y, "7 Hours Later...");
         }
     } else if (currentMap === 'airport') {
         const exit = maps.airport.exitRect;
         if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
             playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
-            triggerTransition('destination', maps.destination.spawn.x, maps.destination.spawn.y);
+            triggerTransition('hotel', maps.hotel.spawn.x, maps.hotel.spawn.y);
+        }
+    } else if (currentMap === 'via_ferrata') {
+        const exit = maps.via_ferrata.exitRect;
+        if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
+            playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
+            triggerTransition('gift_shop', maps.gift_shop.spawn.x, maps.gift_shop.spawn.y);
+        }
+    } else if (currentMap === 'gift_shop') {
+        const exit = maps.gift_shop.exitRect;
+        if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
+            playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
+            triggerTransition('via_ferrata', 1024, 1152); // Exit back to via_ferrata near door
         }
     }
 }
 
 function draw() {
+    ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#0a0a0c';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1120,7 +1467,7 @@ function draw() {
         ctx.fillStyle = '#fff';
         ctx.font = '32px "Courier New", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('Three Days Later...', 300, 300);
+        ctx.fillText(transitionLabel, 300, 300);
         return;
     }
 
@@ -1136,6 +1483,7 @@ function draw() {
     }
 
     const activeMap = maps[currentMap];
+    if (!activeMap) return; // Safety check
     const mapSize = activeMap.size || MAP_SIZE;
 
     let camX = (VIEWPORT_WIDTH / 2) - playerX - (PLAYER_SIZE / 2);
@@ -1144,7 +1492,40 @@ function draw() {
     camY = Math.min(0, Math.max(camY, VIEWPORT_HEIGHT - mapSize));
 
     const activeImg = activeMap.img;
-    ctx.drawImage(activeImg, camX, camY, mapSize, mapSize);
+    // Special handle for gift_shop to allow both custom and image-based drawing
+    if (currentMap === 'gift_shop') {
+        const hasCustomImg = giftShopImg.complete && giftShopImg.naturalWidth !== 0;
+        if (hasCustomImg) {
+            ctx.drawImage(giftShopImg, camX, camY, mapSize, mapSize);
+        } else {
+            // Draw Fallback Gift Shop
+            ctx.fillStyle = '#3e2723';
+            ctx.fillRect(camX, camY, mapSize, mapSize);
+        }
+
+        // Always draw NPC on top
+        ctx.fillStyle = '#4caf50'; // Green body
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.fillRect(camX + 130, camY + 80, PLAYER_SIZE, PLAYER_SIZE);
+        ctx.strokeRect(camX + 130, camY + 80, PLAYER_SIZE, PLAYER_SIZE);
+    } else if (activeMap.img && activeMap.img.complete && activeMap.img.naturalWidth !== 0) {
+        ctx.drawImage(activeMap.img, camX, camY, mapSize, mapSize);
+    } else {
+        // FALLBACK: Draw a placeholder grid so the screen isn't just black
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(camX, camY, mapSize, mapSize);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= mapSize; i += 50) {
+            ctx.beginPath(); ctx.moveTo(camX + i, camY); ctx.lineTo(camX + i, camY + mapSize); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(camX, camY + i); ctx.lineTo(camX + mapSize, camY + i); ctx.stroke();
+        }
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`LOADING MAP: ${activeMap.name}...`, camX + mapSize / 2, camY + mapSize / 2);
+    }
 
     // Draw Lake Waves
     if (currentMap === 'lake_toba') {
@@ -1181,16 +1562,31 @@ function draw() {
 
     // Draw Collision Debug (F3 to toggle)
     if (debugMode) {
+        updateDebugOverlay();
         ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
-        activeMap.collisions.forEach(rect => {
-            ctx.fillRect(camX + rect.x, camY + rect.y, rect.w, rect.h);
-        });
+        if (activeMap.collisions) {
+            activeMap.collisions.forEach(rect => {
+                ctx.fillRect(camX + rect.x, camY + rect.y, rect.w, rect.h);
+            });
+        }
+        // Visualize checkCollision for complex maps
+        if (activeMap.checkCollision) {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+            for (let x = 0; x < mapSize; x += 20) {
+                for (let y = 0; y < mapSize; y += 20) {
+                    if (activeMap.checkCollision(x, y)) {
+                        ctx.fillRect(camX + x, camY + y, 18, 18);
+                    }
+                }
+            }
+        }
     }
 
     // Interaction Hint (O or SPACE icon)
     const hint = document.getElementById('interact-hint');
     let showingHint = false;
-    if ((currentMap === 'destination' || currentMap === 'marketplace' || currentMap === 'borobudur') && !isDialogueOpen && !isShopOpen && !isClimbing && !splashActive) {
+    const currentActiveMap = maps[currentMap];
+    if (currentActiveMap && !isDialogueOpen && !isShopOpen && !isClimbing && !splashActive) {
         // Shared logic for interactables and portal
         const interactables = maps[currentMap].interactables || [];
         interactables.forEach(obj => {
@@ -1198,17 +1594,19 @@ function draw() {
             const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            const triggerDist = obj.type === 'climb_trigger' ? 200 : (obj.type === 'souvenir_shop' ? 150 : 120);
+            const triggerDist = (obj.type === 'climb_trigger') ? 200 :
+                ((obj.type === 'souvenir_shop') ? 150 :
+                    ((obj.type === 'bed') ? 400 : 120));
 
             if (distance < triggerDist) {
                 if (obj.type === 'climb_trigger' && !inventory.climbers_gear) return;
 
                 hint.style.display = 'flex';
-                hint.innerText = (obj.type === 'climb_trigger') ? 'SPACE' : ((obj.type === 'lore_shop') ? 'ENTER' : 'O');
-                hint.style.width = (obj.type === 'climb_trigger') ? '60px' : ((obj.type === 'lore_shop') ? '60px' : '30px');
-                hint.style.borderRadius = (obj.type === 'climb_trigger' || obj.type === 'lore_shop') ? '8px' : '50%';
+                hint.innerText = (obj.type === 'climb_trigger') ? 'SPACE' : ((obj.type === 'lore_shop') ? 'ENTER' : ((obj.type === 'bed') ? 'F' : 'O'));
+                hint.style.width = (obj.type === 'climb_trigger' || obj.type === 'lore_shop' || obj.type === 'bed') ? '60px' : '30px';
+                hint.style.borderRadius = (obj.type === 'climb_trigger' || obj.type === 'lore_shop' || obj.type === 'bed') ? '8px' : '50%';
                 hint.style.position = 'absolute';
-                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - ((obj.type === 'climb_trigger' || obj.type === 'lore_shop') ? 30 : 15)) + 'px';
+                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - ((obj.type === 'climb_trigger' || obj.type === 'lore_shop' || obj.type === 'bed') ? 30 : 15)) + 'px';
                 hint.style.top = (camY + playerY - 40) + 'px';
                 showingHint = true;
             }
@@ -1290,21 +1688,37 @@ function draw() {
     // Draw Cutscene Overlay
     if (splashActive) {
         ctx.fillStyle = '#000';
+        const drawWidth = canvas.width; // Use dynamic width (600 or 900)
 
         if (splashPhase === 'image') {
             ctx.save();
             ctx.globalAlpha = splashAlpha;
-            ctx.drawImage(splashImg, -150, 0, 900, 600);
+            // Center the splash image
+            if (drawWidth === 900) {
+                ctx.drawImage(splashImg, 0, 0, 900, 600);
+            } else {
+                ctx.drawImage(splashImg, -150, 0, 900, 600);
+            }
             ctx.restore();
+
+            // Instruction Overlay for Influencer Cutscene
+            if (splashTimer > 1000 && splashAlpha > 0.8) {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(drawWidth / 2 - 200, 520, 400, 40);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("Enjoy the view? Press SPACE to return to the game!", drawWidth / 2, 545);
+            }
         } else if (splashPhase === 'black' || splashPhase === 'text') {
             ctx.globalAlpha = splashAlpha;
-            ctx.fillRect(0, 0, 600, 600);
+            ctx.fillRect(0, 0, drawWidth, 600);
 
             if (splashPhase === 'text') {
                 ctx.fillStyle = '#fff';
                 ctx.font = '32px "Courier New", monospace';
                 ctx.textAlign = 'center';
-                ctx.fillText('Three Days Later...', 300, 300);
+                ctx.fillText('Three Days Later...', drawWidth / 2, 300);
             }
         }
     }
@@ -1386,6 +1800,40 @@ function drawClimbingMinigame() {
     ctx.fillText(`HEIGHT: ${climbProgress}/${RUNG_COUNT}`, 300, 500);
 }
 
+function updateArrowDisplay() {
+    const symbols = { 'arrowup': 'â†‘', 'arrowdown': 'â†“', 'arrowleft': 'â†', 'arrowright': 'â†’' };
+    const container = document.getElementById('arrow-sequence');
+    if (!container || !currentPhotoTarget) return;
+
+    container.innerHTML = currentPhotoTarget.sequence.map((s, i) => {
+        const color = i < currentPhotoIndex ? '#4CAF50' : '#888';
+        return `<span style="color: ${color}">${symbols[s]}</span>`;
+    }).join(' ');
+}
+
+function resetDrone() {
+    droneX = 400;
+    droneY = 742;
+    droneHeat = 0;
+    droneDead = false;
+    dodgeMode = false;
+    photoMode = false;
+    droneProjectiles = [];
+    droneExplosions = [];
+    photoSuccessCount = 0;
+    researchComplete = false;
+    currentPhotoIndex = 0;
+    document.getElementById('photo-prompt').style.display = 'none';
+    document.getElementById('drone-ui').style.display = 'block';
+
+    // Reset lava target statuses - but KEEP COMPLETED ONES for influencer convenience
+    LAVA_TARGETS.forEach(t => {
+        // t.completed = false; // Persistent progress!
+        t.scanned = false;
+    });
+    photoSuccessCount = LAVA_TARGETS.filter(t => t.completed).length;
+}
+
 function gameLoop() {
     update();
     draw();
@@ -1433,27 +1881,37 @@ function updateDrone() {
     if (dodgeMode) {
         dodgeTimer--;
 
-        // Spawn flurry of acidic blue projectiles (Reduced frequency)
+        // Spawn flurry of acidic blue projectiles from THREE vents (Thrice as hard!)
         if (dodgeTimer % 15 === 0) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 2 + Math.random() * 4;
-            droneProjectiles.push({
-                x: currentPhotoTarget.x,
-                y: currentPhotoTarget.y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                size: 5 + Math.random() * 10
+            const otherVents = LAVA_TARGETS.filter(t => t.id !== currentPhotoTarget.id);
+            const activeVents = [currentPhotoTarget, otherVents[0], otherVents[1]];
+
+            activeVents.forEach(vent => {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 4;
+                droneProjectiles.push({
+                    x: vent.x,
+                    y: vent.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 5 + Math.random() * 10
+                });
             });
         }
 
-        // Random explosions (Shockwaves) - Reduced frequency and now coming from red research zones
+        // Random explosions from THREE vents
         if (dodgeTimer % 100 === 0) {
-            droneExplosions.push({
-                x: currentPhotoTarget.x,
-                y: currentPhotoTarget.y,
-                radius: 10,
-                maxRadius: 60 + Math.random() * 40,
-                life: 60
+            const otherVents = LAVA_TARGETS.filter(t => t.id !== currentPhotoTarget.id);
+            const activeVents = [currentPhotoTarget, otherVents[0], otherVents[1]];
+
+            activeVents.forEach(vent => {
+                droneExplosions.push({
+                    x: vent.x,
+                    y: vent.y,
+                    radius: 10,
+                    maxRadius: 60 + Math.random() * 40,
+                    life: 60
+                });
             });
         }
 
@@ -1701,12 +2159,10 @@ function drawDroneMinigame() {
             const btnH = 60;
 
             ctx.fillStyle = 'rgba(179, 229, 252, 0.9)'; // Pastel Blue
-            ctx.beginPath();
-            ctx.roundRect(btnX, btnY, btnW, btnH, 10);
-            ctx.fill();
+            ctx.fillRect(btnX, btnY, btnW, btnH);
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 3;
-            ctx.stroke();
+            ctx.strokeRect(btnX, btnY, btnW, btnH);
 
             ctx.fillStyle = '#01579b'; // Dark blue text
             ctx.font = 'bold 28px Arial';
@@ -1718,16 +2174,53 @@ function drawDroneMinigame() {
     }
 }
 
-const images = [mapImg, airportImg, destinationImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg, lakeTobaImg, swordImg, boatRightImg, boatDownImg, boatUpImg, boatLeftImg];
+const images = [mapImg, airportImg, hotelImg, viaFerrataImg, ropeImg, climbImg, splashImg, borobudurImg, marketplaceImg, strawHatImg, melonImg, kawahImg, lakeTobaImg, swordImg, boatRightImg, boatDownImg, boatUpImg, boatLeftImg, giftShopImg];
+const processedImages = new Set();
 let loadedCount = 0;
+let gameStarted = false;
 images.forEach(img => {
-    img.onload = () => {
+    const onDone = () => {
+        if (processedImages.has(img)) return;
+        processedImages.add(img);
         loadedCount++;
-        if (loadedCount === images.length) {
-            updateObjective();
-            gameLoop();
+
+        // Visual feedback during loading
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, 600, 600);
+        ctx.fillStyle = '#00d2ff';
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`INITIALIZING ASSETS: ${loadedCount}/${images.length}`, 300, 300);
+        ctx.fillRect(150, 320, (loadedCount / images.length) * 300, 10);
+
+        if (loadedCount >= images.length && !gameStarted) {
+            gameStarted = true;
+            try {
+                updateObjective();
+                gameLoop();
+            } catch (err) {
+                console.error("CRITICAL BOOT ERROR:", err);
+                ctx.fillStyle = '#f44336';
+                ctx.font = '14px monospace';
+                ctx.fillText("BOOT ERROR: " + err.message, 300, 350);
+            }
         }
     };
-    // If image is already cached/loaded
-    if (img.complete) img.onload();
+    img.onload = onDone;
+    img.onerror = () => {
+        console.warn("Failed to load image:", img.src);
+        onDone();
+    };
+    if (img.complete) onDone();
 });
+
+// Global Error Handler for reporting to user
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    ctx.fillStyle = '#f44336';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText("CRASH LOG: " + msg, 300, 500);
+    ctx.fillText("LINE: " + lineNo, 300, 520);
+    return false;
+};
+
