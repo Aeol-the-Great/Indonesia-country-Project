@@ -52,14 +52,14 @@ body {
 }
 
 .map-aircraft {
-    background-image: url("./pixil-frame-0 (3).png") !important;
+    background-image: url("./airplane_interior.png") !important;
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
 }
 
 .map-airport {
-    background-image: url("./pixil-frame-0 (7).png") !important;
+    background-image: url("./airport.png") !important;
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;

@@ -82,6 +82,8 @@ shopUI.style.cssText = `
 container.appendChild(shopUI);
 
 let isShopOpen = false;
+let isDialogueOpen = false;
+let isLorebookOpen = false;
 let isClimbing = false;
 let climbProgress = 0; // 0 to 7 (number of rungs)
 let timingArrowPos = 0;
@@ -102,7 +104,7 @@ let inventory = {
     sun_hat: false,
     melon: false,
     sword: false,
-    lorebook: false
+    lorebook: true
 };
 let budget = 1000000;
 let isReturning = false;
@@ -295,12 +297,12 @@ window.openSouvenirShop = function () {
 
 window.updateSouvenirShopUI = function () {
     shopUI.innerHTML = `
-        <h2 style="color: #ffca28; margin-bottom: 20px; font-size: 24px;">UBUD ART MARKET</h2>
+        <h2 style="color: #ffca28; margin-bottom: 20px; font-size: 24px;">SOUVENIR SHOP</h2>
         <p style="margin-bottom: 20px;">Choose ONE souvenir to take home!</p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
             <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid ${inventory.sun_hat ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
                 <div style="width: 50px; height: 50px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
-                    <img src="pixil-frame-0 (22).png" style="width: 40px; height: 40px; image-rendering: pixelated;">
+                    <img src="Straw Hat.png" style="width: 40px; height: 40px; image-rendering: pixelated;">
                 </div>
                 <div style="font-weight: bold; margin-bottom: 5px;">Straw Hat</div>
                 <div style="font-size: 12px; color: #aaa; margin-bottom: 15px;">A stylish hat for the tropical sun.</div>
@@ -310,10 +312,10 @@ window.updateSouvenirShopUI = function () {
             </div>
             <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid ${inventory.melon ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
                 <div style="width: 50px; height: 50px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
-                    <img src="pixilart-drawing (7).png" style="width: 40px; height: 40px; image-rendering: pixelated;">
+                    <img src="Melon.png" style="width: 40px; height: 40px; image-rendering: pixelated;">
                 </div>
-                <div style="font-weight: bold; margin-bottom: 5px;">Melon</div>
-                <div style="font-size: 12px; color: #aaa; margin-bottom: 15px;">+1000% Ice Damage (Useless here).</div>
+                <div style="font-weight: bold; margin-bottom: 5px;">Melom</div>
+                <div style="font-size: 12px; color: #aaa; margin-bottom: 15px;">+1000% Ice Damage (Miyabistasis).</div>
                 ${(inventory.sun_hat || inventory.melon) ?
             (inventory.melon ? '<span style="color: #4CAF50;">SELECTED</span>' : '<span style="color: #666;">UNAVAILABLE</span>') :
             '<button onclick="selectSouvenir(\'melon\')" style="background: #ffca28; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">SELECT</button>'}
@@ -337,10 +339,10 @@ window.openSwordShop = function () {
 
 window.updateSwordShopUI = function () {
     shopUI.innerHTML = `
-        <h2 style="color: #607d8b; margin-bottom: 20px; font-size: 24px;">???</h2>
+        <h2 style="color: #607d8b; margin-bottom: 20px; font-size: 24px;">UBUD ART MARKET - SECRET STALL</h2>
         <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
             <div style="width: 80px; height: 80px; margin: 0 auto 15px; background: rgba(0, 0, 0, 0.4); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 2px solid #555;">
-                <img src="pixil-frame-0 (28).png" style="width: 60px; height: 60px; image-rendering: pixelated;">
+                <img src="Sword.png" style="width: 60px; height: 60px; image-rendering: pixelated;">
             </div>
             <p style="margin-bottom: 15px; font-size: 16px; color: #cfd8dc;">"Never touch it without its scabbard nearby... wait... where's the scabbard!?"</p>
             <div style="color: #ff5252; font-weight: bold; margin-bottom: 15px;">+1000% CRITDMG</div>
@@ -391,11 +393,21 @@ function updateObjective() {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Explore Borobudur</span>';
         instructionEl.innerText = "Explore the majestic Borobudur Temple.";
     } else if (currentMap === 'aircraft') {
-        objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Get to your seat</span>';
-        instructionEl.innerText = "Get to your seat. The flight to Indonesia will begin shortly.";
+        if (isReturning) {
+            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Time to return home</span>';
+            instructionEl.innerText = "Goodbye, Indonesia. Time to return home. Head to your seat one last time.";
+        } else {
+            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Get to your seat</span>';
+            instructionEl.innerText = "Get to your seat. The flight to Indonesia will begin shortly.";
+        }
     } else if (currentMap === 'airport') {
-        objectiveEl.innerHTML = '<span style="color: #4CAF50;">○ Objective: Step inside the gate to travel!</span>';
-        instructionEl.innerText = "Enter the gate doors to start your journey!";
+        if (isReturning) {
+            objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Board the aircraft</span>';
+            instructionEl.innerText = "Board the aircraft and return home!";
+        } else {
+            objectiveEl.innerHTML = '<span style="color: #4CAF50;">○ Objective: Step inside the gate to travel!</span>';
+            instructionEl.innerText = "Enter the gate doors to start your journey!";
+        }
     } else if (currentMap === 'hotel') {
         objectiveEl.innerHTML = '<span style="color: #ffca28;">○ Objective: Get some rest</span>';
         instructionEl.innerText = "Go to the bed and press F to rest before the big climb.";
@@ -432,34 +444,34 @@ const marketplaceImg = new Image();
 const strawHatImg = new Image();
 const melonImg = new Image();
 const kawahImg = new Image();
-mapImg.src = 'pixil-frame-0 (3).png';
-airportImg.src = 'pixil-frame-0 (7).png';
+mapImg.src = 'airplane_interior.png';
+airportImg.src = 'airport.png';
 ropeImg.src = 'Rope.png';
-climbImg.src = 'pixil-frame-0 (1) (2).png';
-splashImg.src = 'pixil-frame-0 (11).png';
-borobudurImg.src = 'pixil-frame-0 (12).png';
-marketplaceImg.src = 'pixilart-drawing (6).png';
-strawHatImg.src = 'pixil-frame-0 (22).png';
-melonImg.src = 'pixilart-drawing (7).png';
-kawahImg.src = 'pixil-frame-0 (15).png';
+climbImg.src = 'climbing.png';
+splashImg.src = 'Summit Splash.png';
+borobudurImg.src = 'Borobudur Temple.png';
+marketplaceImg.src = 'Art Market.png';
+strawHatImg.src = 'Straw Hat.png';
+melonImg.src = 'Melon.png';
+kawahImg.src = 'Kawah Ijen.png';
 const hotelImg = new Image();
-hotelImg.src = 'pixil-frame-0 (35).png';
+hotelImg.src = 'Hotel Room.png';
 const viaFerrataImg = new Image();
-viaFerrataImg.src = 'pixil-frame-1.png';
+viaFerrataImg.src = 'Via Ferrata.png'; // Corrected: This is the world map
 const giftShopImg = new Image();
-giftShopImg.src = 'pixil-frame-0 (34).png';
+giftShopImg.src = 'Gift Shop.png';
 const lakeTobaImg = new Image();
-lakeTobaImg.src = 'pixil-frame-0 (26).png';
+lakeTobaImg.src = 'Lake Toba.png';
 const swordImg = new Image();
-swordImg.src = 'pixil-frame-0 (28).png';
+swordImg.src = 'Sword.png';
 const boatRightImg = new Image();
-boatRightImg.src = 'pixil-frame-0 (30).png';
+boatRightImg.src = 'Boat Right.png';
 const boatDownImg = new Image();
-boatDownImg.src = 'pixil-frame-0 (31).png';
+boatDownImg.src = 'Boat Down.png';
 const boatUpImg = new Image();
-boatUpImg.src = 'pixil-frame-0 (32).png';
+boatUpImg.src = 'Boat Up.png';
 const boatLeftImg = new Image();
-boatLeftImg.src = 'pixil-frame-0 (33).png';
+boatLeftImg.src = 'Boat Left.png';
 
 const VIEWPORT_WIDTH = 600;
 const VIEWPORT_HEIGHT = 600;
@@ -472,7 +484,6 @@ let playerX = 400;
 let playerY = 700;
 let playerFacing = 'down';
 let keys = {};
-let isDialogueOpen = false;
 
 const maps = {
     aircraft: {
@@ -500,23 +511,19 @@ const maps = {
     },
     hotel: {
         img: hotelImg,
-        name: 'HOTEL CHECK-IN',
-        size: 800,
-        spawn: { x: 400, y: 700 },
+        name: 'HOTEL ROOM',
+        size: 400,
+        spawn: { x: 200, y: 300 },
         collisions: [
-            { x: 0, y: 0, w: 800, h: 100 }, // Top wall
-            { x: 0, y: 0, w: 40, h: 800 },  // Left wall
-            { x: 760, y: 0, w: 40, h: 800 }, // Right wall
-            { x: 0, y: 780, w: 340, h: 20 }, // Bottom wall left
-            { x: 460, y: 780, w: 340, h: 20 }, // Bottom wall right
-            // Furniture
-            { x: 40, y: 100, w: 320, h: 200 }, // Bed & Nightstand
-            { x: 720, y: 100, w: 40, h: 220 },  // TV Table
-            { x: 520, y: 420, w: 160, h: 160 }  // Round Table
+            { x: 0, y: 0, w: 400, h: 40 },  // Top wall
+            { x: 0, y: 0, w: 20, h: 400 },   // Left wall
+            { x: 380, y: 0, w: 20, h: 400 },  // Right wall
+            { x: 0, y: 380, w: 400, h: 20 },  // Bottom wall
+            // Large Bed Area
+            { x: 60, y: 40, w: 280, h: 160 }
         ],
-        interactables: [
-            { x: 40, y: 100, w: 320, h: 200, text: "A comfy bed. Time to rest?", type: 'bed' }
-        ]
+        interactables: [],
+        exitRect: { x: 60, y: 40, w: 280, h: 160 }
     },
     via_ferrata: {
         img: viaFerrataImg,
@@ -607,15 +614,14 @@ const maps = {
         img: lakeTobaImg,
         name: 'LAKE TOBA BOAT TRIP',
         size: 8000,
-        spawn: { x: 4000, y: 4000 },
+        spawn: { x: 6800, y: 5800 }, // Southeastern end
         checkCollision: (x, y) => {
-            // Restrict movement to within the orange square on the map
-            // Bounds calculated from 300x300 image (Scale: 8000/300)
-            if (x < 1467 || x > 7067 || y < 533 || y > 6027) return true;
+            // Movement limited to the water area within the map's major lake feature
+            if (x < 1200 || x > 7200 || y < 400 || y > 6500) return true;
             return false;
         },
         interactables: [
-            { x: 4000, y: 3900, w: 200, h: 100, text: "Return to the Mainland?", type: 'docks' }
+            { x: 1500, y: 600, w: 300, h: 200, text: "Return to the Mainland?", type: 'docks' }
         ]
     },
     gift_shop: {
@@ -644,6 +650,11 @@ window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     keys[key] = true;
 
+    // Prevent default browser actions for game keys
+    if ([' ', 'tab', 'f3', 'o', 'f', 'enter'].includes(key)) {
+        e.preventDefault();
+    }
+
     // Priority 1: Cutscene/Dialogue Handling
     if (splashActive && splashTimer > 1000 && key === ' ') {
         splashActive = false;
@@ -652,7 +663,13 @@ window.addEventListener('keydown', e => {
         return;
     }
 
-    if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ' || key === 'enter')) {
+    if (isDialogueOpen && dialogueBox.innerText.includes("Thank you for playing") && key === ' ') {
+        closeDialogue();
+        showCredits();
+        return;
+    }
+
+    if (isDialogueOpen && (key === 'o' || key === 'escape' || key === ' ' || key === 'enter' || key === 'f')) {
         closeDialogue();
         if (droneDead && (key === 'y' || key === ' ')) {
             resetDrone();
@@ -681,7 +698,7 @@ window.addEventListener('keydown', e => {
     }
 
     // Priority 3: Transition to Lake Toba after research (Must be near player)
-    if (researchComplete && key === 'f') {
+    if (currentMap === 'kawah' && researchComplete && key === 'f') {
         const distToPlayer = Math.sqrt(Math.pow(droneX - 400, 2) + Math.pow(droneY - 742, 2));
         if (distToPlayer < 100) { // Slightly larger radius for ease of use
             isDroneActive = false;
@@ -719,8 +736,6 @@ window.addEventListener('keydown', e => {
             checkFinalExit();
         } else if (currentMap === 'lake_toba') {
             checkLakeTobaExit();
-        } else if (currentMap === 'airport' && isReturning) {
-            checkAirportFinal();
         }
     } else if (key === 'f3') {
         debugMode = !debugMode;
@@ -826,28 +841,24 @@ function checkFinalExit() {
 
 function checkBedInteraction() {
     if (currentMap !== 'hotel') return;
-    const map = maps.hotel;
-    map.interactables.forEach(obj => {
-        if (obj.type === 'bed') {
-            const playerCenterX = playerX + PLAYER_SIZE / 2;
-            const playerCenterY = playerY + PLAYER_SIZE / 2;
-            const targetCenterX = obj.x + obj.w / 2;
-            const targetCenterY = obj.y + obj.h / 2;
 
-            const dx = playerCenterX - targetCenterX;
-            const dy = playerCenterY - targetCenterY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+    // EXTREME RELIABILITY: If you are in the hotel room and press F, it works.
+    // The map is now small (400x400), so the player is always close to the bed.
 
-            // Using 400 for maximum reliability with the large bed sprite
-            if (distance < 400) {
-                if (isReturning) {
-                    triggerTransition('airport', maps.airport.spawn.x, maps.airport.spawn.y, "Journey Home Begins...");
-                } else {
-                    triggerTransition('via_ferrata', maps.via_ferrata.spawn.x, maps.via_ferrata.spawn.y, "Three Restful Days Later...");
-                }
-            }
-        }
-    });
+    // Ensure no states are blocking the transition
+    isDroneActive = false;
+    isClimbing = false;
+    isDialogueOpen = false;
+    isShopOpen = false;
+    isLorebookOpen = false;
+
+    if (isReturning) {
+        // Spawn at the gate exit for the airport on return
+        triggerTransition('airport', 400, 160, "Journey Home Begins...");
+    } else {
+        // Destined for Gunung Parang peak (pixil-frame-1.png)
+        triggerTransition('via_ferrata', maps.via_ferrata.spawn.x, maps.via_ferrata.spawn.y, "Three Restful Days Later...");
+    }
 }
 
 function checkLakeTobaExit() {
@@ -855,29 +866,14 @@ function checkLakeTobaExit() {
     const map = maps.lake_toba;
     map.interactables.forEach(obj => {
         if (obj.type === 'docks') {
-            const dx = playerX - obj.x;
-            const dy = playerY - obj.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 300) {
-                isReturning = true;
-                triggerTransition('hotel', maps.hotel.spawn.x, maps.hotel.spawn.y, "Heading to the Hotel...");
-            }
-        }
-    });
-}
-
-function checkAirportFinal() {
-    if (currentMap !== 'airport' || !isReturning) return;
-    const map = maps.airport;
-    map.interactables.forEach(obj => {
-        if (obj.type === 'aircraft_stairs') {
             const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
             const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < 120) {
-                showCredits();
+                // Return trip starts here!
+                isReturning = true;
+                triggerTransition('hotel', maps.hotel.spawn.x, maps.hotel.spawn.y, "Heading to the Hotel...");
             }
         }
     });
@@ -905,25 +901,20 @@ function showCredits() {
     isCreditsActive = true;
     creditsOverlay.style.display = 'block';
 
-    let geminiRoles = "";
-    for (let i = 0; i < 50; i++) {
-        geminiRoles += `
-            <p>Lead Engine Architect: Google Gemini</p>
-            <p>Senior Systems Coder: Google Gemini</p>
-            <p>Junior Debugger: Google Gemini</p>
-            <p>Cloud Infrastructure Specialist: Google Gemini</p>
-            <p>AI Logic Processor: Google Gemini</p>
-            <p>Collision Detection Engineer: Google Gemini</p>
-            <p>Minigame Mechanics Unit: Google Gemini</p>
-            <br>
-        `;
-    }
+    const programmingRoles = `
+        <p>Lead Engine Architect: Google Gemini</p>
+        <p>Senior Systems Coder: Google Gemini</p>
+        <p>Junior Debugger: Google Gemini</p>
+        <p>Cloud Infrastructure Specialist: Google Gemini</p>
+        <p>AI Logic Processor: Google Gemini</p>
+        <p>Collision Detection Engineer: Google Gemini</p>
+        <p>Minigame Mechanics Unit: Google Gemini</p>
+    `;
 
     creditsOverlay.innerHTML = `
         <div id="credits-content" style="position: absolute; width: 100%; top: 100%;">
             <div style="padding: 100px 20px;">
                 <h1 style="color: #00d2ff; margin-bottom: 50px;">— THE CREDITS —</h1>
-                <p style="font-size: 14px; color: #888;">(courtesy of google gemini, not antigravity gemini XD)</p>
                 
                 <h2 style="margin-top: 50px; color: #ff9800;">EXECUTIVE MANAGEMENT & VISIONARY LEADERSHIP</h2>
                 <p>Chief Executive Officer (CEO): Ai-Une I.</p>
@@ -943,7 +934,7 @@ function showCredits() {
                 <p>Senior Lore Master: Knox B.</p>
 
                 <h2 style="margin-top: 50px; color: #ff9800;">THE PROGRAMMING LEGION</h2>
-                ${geminiRoles}
+                ${programmingRoles}
 
                 <h2 style="margin-top: 50px; color: #ff9800;">ART, VFX, & WORLD BUILDING</h2>
                 <p>Art Director: Ai-Une I.</p>
@@ -1154,11 +1145,15 @@ function checkInteraction() {
     if (!map.interactables) return;
 
     map.interactables.forEach(obj => {
-        const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
-        const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
+        // Precise Distance to Rectangle check (AABB)
+        const px = playerX + PLAYER_SIZE / 2;
+        const py = playerY + PLAYER_SIZE / 2;
+
+        const dx = Math.max(obj.x - px, 0, px - (obj.x + obj.w));
+        const dy = Math.max(obj.y - py, 0, py - (obj.y + obj.h));
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < 120) { // Interaction range
+        if (distance < 60) { // Standardized interaction buffer (edge to player center)
             if (obj.type === 'shop') {
                 openShop();
             } else if (obj.type === 'souvenir_shop') {
@@ -1167,6 +1162,8 @@ function checkInteraction() {
                 openSwordShop();
             } else if (obj.type === 'lore_shop') {
                 openLoreShop();
+            } else if (obj.type === 'aircraft_stairs' && isReturning) {
+                triggerTransition('aircraft', maps.aircraft.spawn.x, maps.aircraft.spawn.y, "Boarding the flight home...");
             } else {
                 showDialogue(obj.text);
             }
@@ -1196,6 +1193,14 @@ function update() {
             playerX = pendingTransition.nextX;
             playerY = pendingTransition.nextY;
             document.getElementById('map-name').textContent = maps[currentMap].name;
+
+            // Critical State Reset on Map Change
+            isDroneActive = false;
+            isClimbing = false;
+            isDialogueOpen = false;
+            isShopOpen = false;
+            isLorebookOpen = false;
+
             updateObjective();
 
             // Map-specific setups
@@ -1208,8 +1213,21 @@ function update() {
                 updateObjective();
             } else if (currentMap === 'lake_toba') {
                 document.getElementById('stamina-ui').style.display = 'block';
+                document.getElementById('drone-ui').style.display = 'none'; // Hide heat bar
                 stamina = 100;
                 isExhausted = false;
+                isReturning = true; // Mark as returning once Lake Toba is reached
+
+                // Finalize Hotel Resize for the return trip
+                maps.hotel.size = 600;
+                maps.hotel.collisions = [
+                    { x: 0, y: 0, w: 600, h: 40 },
+                    { x: 0, y: 0, w: 20, h: 600 },
+                    { x: 580, y: 0, w: 20, h: 600 },
+                    { x: 0, y: 580, w: 600, h: 20 },
+                    { x: 100, y: 100, w: 400, h: 300 } // Larger bed for 600x600
+                ];
+                maps.hotel.exitRect = { x: 100, y: 100, w: 400, h: 300 };
             } else {
                 document.getElementById('stamina-ui').style.display = 'none';
             }
@@ -1344,12 +1362,13 @@ function update() {
 
     // Stamina Logic for Lake Toba
     if (currentMap === 'lake_toba') {
+        const isThrottling = keys['w'] || keys['s'] || keys['a'] || keys['d'];
         const isMoving = moveX !== 0 || moveY !== 0;
         const rechargeRate = 0.2;
         const exhaustedRechargeRate = rechargeRate * 1.5;
 
-        if (isMoving) {
-            stamina = Math.max(0, stamina - 0.5);
+        if (isThrottling) {
+            stamina = Math.max(0, stamina - 0.4); // Slower drain when throttling
             if (stamina === 0) isExhausted = true;
         } else {
             const currentRecharge = isExhausted ? exhaustedRechargeRate : rechargeRate;
@@ -1359,19 +1378,28 @@ function update() {
 
         // Update Stamina UI
         const fill = document.getElementById('stamina-fill');
-        fill.style.height = stamina + '%';
-        fill.style.background = isExhausted ? '#f44336' : (stamina < 30 ? '#ff9800' : '#4caf50');
+        if (fill) {
+            fill.style.height = stamina + '%';
+            fill.style.background = isExhausted ? '#f44336' : (stamina < 30 ? '#ff9800' : '#4caf50');
+        }
 
-        // Lake Waves Logic
-        // Lake Waves Logic: Spawn around the player in the massive lake
-        if (Math.random() < 0.04) {
-            lakeWaves.push({
-                x: playerX + (Math.random() - 0.5) * 800,
-                y: playerY + (Math.random() - 0.5) * 800,
-                radius: 5,
-                maxRadius: 60 + Math.random() * 40,
-                life: 90
-            });
+        // Lake Waves Logic: Reduced frequency and bounded to playable area
+        if (Math.random() < 0.015) { // Much less frequent (was 0.04)
+            const margin = 200;
+            const waveX = playerX + (Math.random() - 0.5) * 800;
+            const waveY = playerY + (Math.random() - 0.5) * 800;
+
+            // Only spawn waves if they are within the playable water bounds
+            if (waveX > 1200 + margin && waveX < 7200 - margin &&
+                waveY > 400 + margin && waveY < 6500 - margin) {
+                lakeWaves.push({
+                    x: waveX,
+                    y: waveY,
+                    radius: 5,
+                    maxRadius: 60 + Math.random() * 40,
+                    life: 120
+                });
+            }
         }
 
         lakeWaves.forEach(w => {
@@ -1433,13 +1461,29 @@ function update() {
         const exit = maps.aircraft.exitRect;
         if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
             playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
-            triggerTransition('airport', maps.airport.spawn.x, maps.airport.spawn.y, "7 Hours Later...");
+            if (isReturning) {
+                if (!isDialogueOpen) {
+                    showDialogue("Thank you for playing! Press SPACE to view the credits.");
+                }
+            } else {
+                triggerTransition('airport', maps.airport.spawn.x, maps.airport.spawn.y, "7 Hours Later...");
+            }
         }
     } else if (currentMap === 'airport') {
         const exit = maps.airport.exitRect;
-        if (playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
+        // Forward transition (to Via Ferrata)
+        if (!isReturning && playerX < exit.x + exit.w && playerX + PLAYER_SIZE > exit.x &&
             playerY < exit.y + exit.h && playerY + PLAYER_SIZE > exit.y) {
-            triggerTransition('hotel', maps.hotel.spawn.x, maps.hotel.spawn.y);
+            triggerTransition('via_ferrata', maps.via_ferrata.spawn.x, maps.via_ferrata.spawn.y, "3 Days in the Hotel later...");
+        }
+
+        // Automatic return transition (to Aircraft)
+        if (isReturning) {
+            const stairs = maps.airport.interactables.find(i => i.type === 'aircraft_stairs');
+            if (stairs && playerX < stairs.x + stairs.w && playerX + PLAYER_SIZE > stairs.x &&
+                playerY < stairs.y + stairs.h && playerY + PLAYER_SIZE > stairs.y) {
+                triggerTransition('aircraft', maps.aircraft.spawn.x, maps.aircraft.spawn.y, "Boarding the flight home...");
+            }
         }
     } else if (currentMap === 'via_ferrata') {
         const exit = maps.via_ferrata.exitRect;
@@ -1590,23 +1634,24 @@ function draw() {
         // Shared logic for interactables and portal
         const interactables = maps[currentMap].interactables || [];
         interactables.forEach(obj => {
-            const dx = (playerX + PLAYER_SIZE / 2) - (obj.x + obj.w / 2);
-            const dy = (playerY + PLAYER_SIZE / 2) - (obj.y + obj.h / 2);
+            const px = playerX + PLAYER_SIZE / 2;
+            const py = playerY + PLAYER_SIZE / 2;
+
+            const dx = Math.max(obj.x - px, 0, px - (obj.x + obj.w));
+            const dy = Math.max(obj.y - py, 0, py - (obj.y + obj.h));
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            const triggerDist = (obj.type === 'climb_trigger') ? 200 :
-                ((obj.type === 'souvenir_shop') ? 150 :
-                    ((obj.type === 'bed') ? 400 : 120));
+            const triggerDist = (obj.type === 'climb_trigger') ? 100 : 60;
 
             if (distance < triggerDist) {
                 if (obj.type === 'climb_trigger' && !inventory.climbers_gear) return;
 
                 hint.style.display = 'flex';
-                hint.innerText = (obj.type === 'climb_trigger') ? 'SPACE' : ((obj.type === 'lore_shop') ? 'ENTER' : ((obj.type === 'bed') ? 'F' : 'O'));
-                hint.style.width = (obj.type === 'climb_trigger' || obj.type === 'lore_shop' || obj.type === 'bed') ? '60px' : '30px';
-                hint.style.borderRadius = (obj.type === 'climb_trigger' || obj.type === 'lore_shop' || obj.type === 'bed') ? '8px' : '50%';
+                hint.innerText = (obj.type === 'climb_trigger') ? 'SPACE' : 'O';
+                hint.style.width = (obj.type === 'climb_trigger') ? '60px' : '30px';
+                hint.style.borderRadius = (obj.type === 'climb_trigger') ? '8px' : '50%';
                 hint.style.position = 'absolute';
-                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - ((obj.type === 'climb_trigger' || obj.type === 'lore_shop' || obj.type === 'bed') ? 30 : 15)) + 'px';
+                hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - ((obj.type === 'climb_trigger') ? 30 : 15)) + 'px';
                 hint.style.top = (camY + playerY - 40) + 'px';
                 showingHint = true;
             }
@@ -1647,6 +1692,39 @@ function draw() {
                 hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - 15) + 'px';
                 hint.style.top = (camY + playerY - 40) + 'px';
                 showingHint = true;
+            }
+        }
+
+        // Specific portal hint for Hotel Bed
+        if (currentMap === 'hotel') {
+            // Since map is small (400x400), always show the prompt
+            hint.style.display = 'flex';
+            hint.innerText = 'F';
+            hint.style.width = '30px';
+            hint.style.borderRadius = '50%';
+            hint.style.position = 'absolute';
+            hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - 15) + 'px';
+            hint.style.top = (camY + playerY - 40) + 'px';
+            showingHint = true;
+        }
+
+        // Specific portal hint for Lake Toba Docks
+        if (currentMap === 'lake_toba') {
+            const docks = maps.lake_toba.interactables.find(i => i.type === 'docks');
+            if (docks) {
+                const dx = playerX - docks.x;
+                const dy = playerY - docks.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 400) {
+                    hint.style.display = 'flex';
+                    hint.innerText = 'F';
+                    hint.style.width = '30px';
+                    hint.style.borderRadius = '50%';
+                    hint.style.position = 'absolute';
+                    hint.style.left = (camX + playerX + PLAYER_SIZE / 2 - 15) + 'px';
+                    hint.style.top = (camY + playerY - 40) + 'px';
+                    showingHint = true;
+                }
             }
         }
     }
@@ -1977,6 +2055,7 @@ function updateDrone() {
         const iceUI = document.getElementById('ice-status');
         if (iceStatusTimer > 0) {
             iceStatusTimer--;
+            iceUI.innerHTML = "❄ ICE STATUS: FROST AURA ACTIVE ❄";
             iceUI.style.display = 'block';
         } else {
             iceUI.style.display = 'none';
